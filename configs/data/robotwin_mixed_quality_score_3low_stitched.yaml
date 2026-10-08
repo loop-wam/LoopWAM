@@ -1,0 +1,129 @@
+# Expert + three low-quality RoboTwin roots, using numeric prompt quality scores.
+# `dataset_prompt_quality_score` aligns with `dataset_dirs`:
+#   fixed integer = every episode uses that score
+#   {success, failure} = choose score from episode success metadata
+train:
+  _target_: fastwam.datasets.lerobot.robot_video_dataset.RobotVideoDataset
+  dataset_dirs:
+    - ./data/robotwin2_0_stitched
+    - ./data/robotwin2_0-ours/lerobot_format_new/fwam_processed_stitched
+    - ./data/robotwin2_0-ours/lerobot_format_new/pi05_processed_stitched
+    - ./data/robotwin2_0-ours/lerobot_format_new/xvla_processed_stitched
+  dataset_supervise_action:
+    - true
+    - false
+    - false
+    - false
+  dataset_prompt_quality_score:
+    - 5
+    - success: 4
+      failure: 1
+    - success: 3
+      failure: 1
+    - success: 3
+      failure: 1
+  shape_meta:
+    images:
+      - key: robotwin
+        raw_shape: [3, 384, 320]
+        shape: [3, 384, 320]
+    action:
+      - key: default
+        raw_shape: 14
+        shape: 14
+    state:
+      - key: default
+        raw_shape: 14
+        shape: 14
+  num_frames: 33
+  global_sample_stride: 1
+  action_video_freq_ratio: 4
+  decode_video_sampled_frames_only: true
+  video_size: [384, 320]
+  camera_key: null
+  val_set_proportion: 0.01
+  is_training_set: true
+  pretrained_norm_stats: ./data/robotwin2_0_stitched/dataset_stats.json
+  skip_padding_as_possible: false
+  concat_multi_camera: null
+  processor:
+    _target_: fastwam.datasets.lerobot.processors.fastwam_processor.FastWAMProcessor
+    shape_meta: ${data.train.shape_meta}
+    num_obs_steps: ${data.train.num_frames}
+    num_output_cameras: 1
+    action_output_dim: 14
+    proprio_output_dim: 14
+    action_state_transforms: null
+    use_stepwise_action_norm: False
+    norm_default_mode: "z-score"
+    norm_exception_mode: null
+    action_state_merger:
+      _target_: fastwam.datasets.lerobot.transforms.action_state_merger.ConcatLeftAlign
+    train_transforms:
+      - _target_: fastwam.datasets.lerobot.transforms.image.ToTensor
+      - _target_: torchvision.transforms.Resize
+        size: [384, 320]
+    val_transforms:
+      - _target_: fastwam.datasets.lerobot.transforms.image.ToTensor
+      - _target_: torchvision.transforms.Resize
+        size: [384, 320]
+  text_embedding_cache_dir:
+    - ./data/robotwin2_0-ours/text_embeds_cache/robotwin2_0_quality_score
+    - ./data/robotwin2_0-ours/text_embeds_cache/fwam_processed_new_quality_score
+    - ./data/robotwin2_0-ours/text_embeds_cache/pi05_processed_quality_score
+    - ./data/robotwin2_0-ours/text_embeds_cache/xvla_processed_quality_score
+  context_len: 128
+
+val:
+  _target_: fastwam.datasets.lerobot.robot_video_dataset.RobotVideoDataset
+  dataset_dirs:
+    - ./data/robotwin2_0_stitched
+  dataset_prompt_quality_score:
+    - 5
+  shape_meta:
+    images:
+      - key: robotwin
+        raw_shape: [3, 384, 320]
+        shape: [3, 384, 320]
+    action:
+      - key: default
+        raw_shape: 14
+        shape: 14
+    state:
+      - key: default
+        raw_shape: 14
+        shape: 14
+  num_frames: 33
+  global_sample_stride: 1
+  action_video_freq_ratio: 4
+  decode_video_sampled_frames_only: true
+  video_size: [384, 320]
+  camera_key: null
+  val_set_proportion: 0.01
+  is_training_set: false
+  pretrained_norm_stats: ./data/robotwin2_0_stitched/dataset_stats.json
+  skip_padding_as_possible: false
+  concat_multi_camera: null
+  processor:
+    _target_: fastwam.datasets.lerobot.processors.fastwam_processor.FastWAMProcessor
+    shape_meta: ${data.train.shape_meta}
+    num_obs_steps: ${data.train.num_frames}
+    num_output_cameras: 1
+    action_output_dim: 14
+    proprio_output_dim: 14
+    action_state_transforms: null
+    use_stepwise_action_norm: False
+    norm_default_mode: "z-score"
+    norm_exception_mode: null
+    action_state_merger:
+      _target_: fastwam.datasets.lerobot.transforms.action_state_merger.ConcatLeftAlign
+    train_transforms:
+      - _target_: fastwam.datasets.lerobot.transforms.image.ToTensor
+      - _target_: torchvision.transforms.Resize
+        size: [384, 320]
+    val_transforms:
+      - _target_: fastwam.datasets.lerobot.transforms.image.ToTensor
+      - _target_: torchvision.transforms.Resize
+        size: [384, 320]
+  text_embedding_cache_dir: ./data/robotwin2_0-ours/text_embeds_cache/robotwin2_0_quality_score
+  context_len: 128

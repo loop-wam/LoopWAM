@@ -1,8 +1,8 @@
-checkpoints/
+/checkpoints/
 *.pt
-runs/
-data/
-converted_data
+/runs/
+/data/
+/converted_data
 __pycache__/
 *.pyc
 .cache/
