@@ -1,4 +1,5 @@
 /checkpoints/
+scripts/upload_checkpoints.sh
 *.pt
 /runs/
 /data/
