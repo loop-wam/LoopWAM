@@ -3,8 +3,8 @@
 # Train the UR5 checkpoint released as
 #   checkpoints/ur5_rollout_subtask_delta/step_029925.pt
 #
-#   bash train_ur5_loopwam.sh
-#   bash train_ur5_loopwam.sh 8
+#   bash train_table30_v2.sh ur5
+#   bash train_table30_v2.sh ur5 8
 
 defaults:
   - override /data: ur5_rollout_subtask_delta

@@ -6,8 +6,8 @@
 # Expert text cache has no Quality suffix, so this run uses the mixed
 # expert/weak model. The quality-weighted loss would reject those prompts.
 #
-#   bash train_w1_loopwam.sh
-#   bash train_w1_loopwam.sh 8
+#   bash train_table30_v2.sh w1
+#   bash train_table30_v2.sh w1 8
 
 defaults:
   - override /data: w1_rollout_nofoldlace_delta

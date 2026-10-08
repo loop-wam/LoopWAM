@@ -7,8 +7,8 @@
 #   table30_rc_arx5_10_quality_score_rcv2_1cam_stitched_384_1e-4_action_weighted_stillness_filter_subtask_relative_joint
 # That dump sets action_loss_quality_score_linear.weight_max to 0.0.
 #
-#   bash train_arx5_loopwam.sh
-#   bash train_arx5_loopwam.sh 8
+#   bash train_table30_v2.sh arx5
+#   bash train_table30_v2.sh arx5 8
 
 defaults:
   - override /data: arx5_newrollout_subtask_delta

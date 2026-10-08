@@ -3,8 +3,8 @@
 # Train the Aloha checkpoint released as
 #   checkpoints/aloha_rollout_delta_nopackpen/step_061320.pt
 #
-#   bash train_aloha_loopwam.sh
-#   bash train_aloha_loopwam.sh 8
+#   bash train_table30_v2.sh aloha
+#   bash train_table30_v2.sh aloha 8
 
 defaults:
   - override /data: aloha_rollout_delta_nopackpen

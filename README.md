@@ -69,7 +69,8 @@ All 16 Composite-Unseen tasks are held out of both expert data and rollout data.
 
 | Path | What it is |
 | --- | --- |
-| `train_*_loopwam.sh` | Training entry for UR5, ALOHA, ARX5, DOS-W1, and RoboTwin 2.0 |
+| `train_table30_v2.sh` | Real-robot training for UR5, ALOHA, ARX5, and DOS-W1 |
+| `train_robotwin_loopwam.sh` | RoboTwin 2.0 training |
 | `checkpoints/` | Released weights, real copies, each with `dataset_stats.json` |
 | `configs/` | Hydra task and data configs |
 | `scripts/setup_env.sh` | Conda env, PyTorch, and `pip install -e .` |
@@ -156,14 +157,14 @@ Real-robot training uses [RoboChallenge Table30-V2](https://loopwam.github.io/).
 Real-robot scripts default to 8 GPUs. RoboTwin 2.0 defaults to 16 GPUs per node.
 
 ```bash
-bash train_ur5_loopwam.sh          # UR5
-bash train_aloha_loopwam.sh        # ALOHA
-bash train_arx5_loopwam.sh         # ARX5
-bash train_w1_loopwam.sh           # DOS-W1
+bash train_table30_v2.sh ur5       # UR5
+bash train_table30_v2.sh aloha     # ALOHA
+bash train_table30_v2.sh arx5      # ARX5
+bash train_table30_v2.sh w1        # DOS-W1
 bash train_robotwin_loopwam.sh     # RoboTwin 2.0
 ```
 
-Pass a GPU count as the first argument, for example `bash train_ur5_loopwam.sh 1`.
+Pass a GPU count after the robot name, for example `bash train_table30_v2.sh ur5 1`. RoboTwin takes the GPU count as its first argument.
 
 Real-robot training uses RoboChallenge Table30-V2. Released checkpoints, each with its `dataset_stats.json`:
 
