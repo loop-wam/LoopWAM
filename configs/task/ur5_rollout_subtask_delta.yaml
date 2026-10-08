@@ -1,0 +1,43 @@
+# @package _global_
+#
+# Train the UR5 checkpoint released as
+#   checkpoints/ur5_rollout_subtask_delta/step_029925.pt
+#
+#   bash train_ur5_loopwam.sh
+#   bash train_ur5_loopwam.sh 8
+
+defaults:
+  - override /data: ur5_rollout_subtask_delta
+  - override /model: fastwam_joint_mixed_quality_weighted
+  - _self_
+
+batch_size: 16
+num_workers: 12
+
+model:
+  mot_checkpoint_mixed_attn: false
+  video_cross_attend_proprio: false
+  action_loss_quality_score_linear:
+    score_min: 0.0
+    score_max: 10.0
+    weight_min: 0.0
+    weight_max: 0.5
+    expert_score: 12
+    expert_weight: 1.0
+
+lr_scheduler_type: "cosine"
+learning_rate: 1e-4
+num_epochs: 5
+max_steps: null
+log_every: 10
+save_every: 2500
+eval_every: 500
+
+gradient_accumulation_steps: 1
+weight_decay: 1e-2
+resume: null
+
+EVALUATION:
+  action_horizon: 64
+  replan_steps: 32
+  prompt_quality_score: 12

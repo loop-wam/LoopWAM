@@ -1,0 +1,37 @@
+# @package _global_
+#
+# Train the W1 checkpoint released as
+#   checkpoints/w1_rollout_nofoldlace_delta/step_072970.pt
+#
+# Expert text cache has no Quality suffix, so this run uses the mixed
+# expert/weak model. The quality-weighted loss would reject those prompts.
+#
+#   bash train_w1_loopwam.sh
+#   bash train_w1_loopwam.sh 8
+
+defaults:
+  - override /data: w1_rollout_nofoldlace_delta
+  - override /model: fastwam_joint_mixed
+  - _self_
+
+batch_size: 16
+num_workers: 12
+
+model:
+  mot_checkpoint_mixed_attn: false
+
+lr_scheduler_type: "cosine"
+learning_rate: 1e-4
+num_epochs: 5
+max_steps: null
+log_every: 10
+save_every: 2500
+eval_every: 500
+
+gradient_accumulation_steps: 1
+weight_decay: 1e-2
+resume: null
+
+EVALUATION:
+  action_horizon: 64
+  replan_steps: 32

@@ -1,0 +1,10 @@
+checkpoints/
+*.pt
+runs/
+data/
+converted_data
+__pycache__/
+*.pyc
+.cache/
+*.egg-info/
+.venv/
