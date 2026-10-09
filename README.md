@@ -4,6 +4,10 @@
 
 [Project page](https://loopwam.github.io/) · [arXiv](https://arxiv.org/abs/XXXX.XXXXX)
 
+<p align="center">
+  <img src="https://loopwam.github.io/assets/branding/teaser.webp" alt="LoopWAM self-improvement loop: deploy, collect mixed-quality rollouts, and improve through quality-aware learning." width="820">
+</p>
+
 Expert demonstrations show a robot how to succeed. Deployment shows what happens when it does not. LoopWAM learns from that full mixture: successful, suboptimal, and failed rollouts from itself and from other deployed policies. World-model supervision stays on for every trajectory. Action imitation is weighted by trajectory quality, and failed rollouts contribute no direct action-imitation loss.
 
 | Benchmark | Setting | LoopWAM |
@@ -18,6 +22,10 @@ These are the best overall numbers among the methods compared in the submitted p
 
 LoopWAM jointly denoises future video and actions. Bidirectional attention connects the two streams at every layer, so learned action consequences can inform control. Both streams are conditioned on the instruction and on trajectory quality. At deployment, an expert-quality target steers the policy.
 
+<p align="center">
+  <img src="https://loopwam.github.io/assets/figures/method.webp" alt="Mixed-quality data trains video and action branches through joint attention, source-dependent noise, quality-weighted supervision, and quality steering." width="820">
+</p>
+
 Three deployment-and-training rounds on Table30-V2 take a single multi-task model per embodiment from an expert-trained policy to the final result:
 
 | Stage | Success | Score |
@@ -28,6 +36,12 @@ Three deployment-and-training rounds on Table30-V2 take a single multi-task mode
 | Round 3 | 43.33% | 56.80 |
 
 Shirt folding, after single-task post-training, moves from 13.20% to 55.56% in two further rounds. Numbers are from the [project page](https://loopwam.github.io/) and the paper (Figure 3, Section 4.4).
+
+Click a frame to play the clip. The full set is on the [project page](https://loopwam.github.io/#folding).
+
+| [Overview](https://loopwam.github.io/assets/videos/overview.mp4) | [30 tasks](https://loopwam.github.io/assets/videos/rollout-30-tasks.mp4) | [Shirt folding, success](https://loopwam.github.io/assets/videos/folding/s1.mp4) | [Shirt folding, failure](https://loopwam.github.io/assets/videos/folding/f1.mp4) |
+| --- | --- | --- | --- |
+| [![Overview](https://loopwam.github.io/assets/posters/overview.jpg)](https://loopwam.github.io/assets/videos/overview.mp4) | [![Thirty RoboChallenge rollouts](https://loopwam.github.io/assets/posters/rollout-30-tasks.jpg)](https://loopwam.github.io/assets/videos/rollout-30-tasks.mp4) | [![Shirt folding success](https://loopwam.github.io/assets/posters/folding/s1.jpg)](https://loopwam.github.io/assets/videos/folding/s1.mp4) | [![Shirt folding failure](https://loopwam.github.io/assets/posters/folding/f1.jpg)](https://loopwam.github.io/assets/videos/folding/f1.mp4) |
 
 ## Results
 
