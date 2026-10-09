@@ -193,7 +193,7 @@ Real-robot training uses RoboChallenge Table30-V2. Released checkpoints, each wi
 
 RoboTwin 2.0 follows the final mixed-rollout recipe: expert `robotwin2_0_stitched` plus FastWAM, π0.5, and X-VLA rollouts, quality-weighted action loss, `num_frames=65`, `action_video_freq_ratio=8`. Prepare that tree with `scripts/prepare_data.sh` before launching.
 
-RoboCasa365 uses expert demonstrations plus three rollout sources, quality-weighted action loss, and the `robocasa` three-camera stitch (`256x384`). Dataset roots stay on the training cluster under `/mnt/data/dm05/dexmal-aa-wzg-data/robocasa365/`. Normalization stats stay at `/mnt/data/dm05/share/wzg/project/gfwam/robocasa365_norm.json`. Text-embedding caches are the paths already written in `configs/data/robocasa365_mq_3rollout.yaml`.
+RoboCasa365 uses expert demonstrations plus three rollout sources, quality-weighted action loss, and the `robocasa` three-camera stitch (`256x384`). Dataset roots stay on the training cluster under `/mnt/data/dm05/dexmal-aa-wzg-data/robocasa365/`. Normalization stats are computed from the training set on the first run and saved as `dataset_stats.json` in the run directory. Text-embedding caches are the paths already written in `configs/data/robocasa365_mq_3rollout.yaml`.
 
 ## RoboTwin 2.0 evaluation
 

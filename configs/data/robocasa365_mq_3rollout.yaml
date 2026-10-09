@@ -6400,7 +6400,7 @@ train:
   camera_key: null
   val_set_proportion: 0.01
   is_training_set: true
-  pretrained_norm_stats: /mnt/data/dm05/share/wzg/project/gfwam/robocasa365_norm.json
+  pretrained_norm_stats: null
   skip_padding_as_possible: false
   concat_multi_camera: "robocasa"
   processor: *processor
@@ -8340,7 +8340,7 @@ val:
   camera_key: null
   val_set_proportion: 0.01
   is_training_set: false
-  pretrained_norm_stats: /mnt/data/dm05/share/wzg/project/gfwam/robocasa365_norm.json
+  pretrained_norm_stats: null
   skip_padding_as_possible: false
   concat_multi_camera: "robocasa"
   processor: *processor
