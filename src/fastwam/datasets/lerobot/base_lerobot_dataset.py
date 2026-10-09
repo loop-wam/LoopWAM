@@ -34,6 +34,11 @@ class BaseLerobotDataset(torch.utils.data.Dataset):
         # sampling
         global_sample_stride: int = 1,
         image_sample_indices: Optional[Sequence[int]] = None,
+        # optional per-dataset cap on number of episodes used (after train/val split).
+        # int -> same cap for every dir; list of ints -> aligned 1:1 with dataset_dirs.
+        # None (or entry None / <=0) -> no cap for that dir.
+        # Success/failure dict caps are handled by BaseLerobotDatasetSuccessCap.
+        max_episodes_per_dataset: Optional[Any] = None,
     ):
         assert len(dataset_dirs) > 0, "At least one dataset directory is required"
         assert past_action_size == 0
@@ -62,6 +67,20 @@ class BaseLerobotDataset(torch.utils.data.Dataset):
 
         self.val_set_proportion = val_set_proportion
         self.is_training_set = is_training_set
+
+        if max_episodes_per_dataset is None:
+            max_eps_list: List[Optional[int]] = [None] * len(dataset_dirs)
+        elif isinstance(max_episodes_per_dataset, int):
+            max_eps_list = [int(max_episodes_per_dataset)] * len(dataset_dirs)
+        else:
+            max_eps_list = list(max_episodes_per_dataset)
+            if len(max_eps_list) != len(dataset_dirs):
+                raise ValueError(
+                    "`max_episodes_per_dataset` length must match `dataset_dirs`: "
+                    f"got {len(max_eps_list)} caps and {len(dataset_dirs)} dirs."
+                )
+            max_eps_list = [None if v is None else int(v) for v in max_eps_list]
+        self.max_episodes_per_dataset = max_eps_list
 
         self.image_meta = shape_meta["images"]
         self.state_meta = shape_meta["state"]
@@ -94,19 +113,27 @@ class BaseLerobotDataset(torch.utils.data.Dataset):
 
         episodes = {}
         if val_set_proportion < 1e-6:
-            for meta in metas:
-                episodes.update({meta.repo_id: list(range(meta.total_episodes))})
+            for di, meta in enumerate(metas):
+                ep = list(range(meta.total_episodes))
+                cap = self.max_episodes_per_dataset[di]
+                if cap is not None and cap > 0:
+                    ep = ep[:cap]
+                episodes.update({meta.repo_id: ep})
         else:
-            for meta in metas:
+            for di, meta in enumerate(metas):
                 split_idx = int(meta.total_episodes * (1 - val_set_proportion))
                 # random shuffle episode indices before splitting
                 episode_indices = list(range(meta.total_episodes))
                 rng = np.random.default_rng(seed)
                 rng.shuffle(episode_indices)
                 if self.is_training_set:
-                    episodes.update({meta.repo_id: [episode_indices[i] for i in range(split_idx)]})
+                    ep = [episode_indices[i] for i in range(split_idx)]
                 else:
-                    episodes.update({meta.repo_id: [episode_indices[i] for i in range(split_idx, meta.total_episodes)]})
+                    ep = [episode_indices[i] for i in range(split_idx, meta.total_episodes)]
+                cap = self.max_episodes_per_dataset[di]
+                if cap is not None and cap > 0:
+                    ep = ep[:cap]
+                episodes.update({meta.repo_id: ep})
 
         self.multi_dataset = MultiLeRobotDataset(
             dataset_dirs=self.dataset_dirs,

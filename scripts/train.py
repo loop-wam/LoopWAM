@@ -22,11 +22,22 @@ def _enable_rollout_recipe() -> None:
     ``FASTWAM_EXCLUDE_RAW_PREFIXES`` drops episodes whose ``raw_file_name``
     starts with one of the comma-separated prefixes.
 
-    RoboTwin 2.0 uses quality scores 1-5 and is left on the stock dataset code.
+    RoboTwin 2.0 and RoboCasa365 use quality scores 1-5 and stay on the stock dataset code.
     """
     import os
+    import sys
 
-    if os.environ.get("FASTWAM_TASK", "").startswith("robotwin"):
+    task_name = ""
+    for arg in sys.argv[1:]:
+        if arg.startswith("task="):
+            task_name = arg.split("=", 1)[1]
+            break
+    if not task_name:
+        task_name = os.environ.get("FASTWAM_TASK", "")
+    task_name = task_name.strip()
+    if task_name.endswith(".yaml"):
+        task_name = task_name[:-5]
+    if task_name.startswith("robotwin") or task_name.startswith("robocasa"):
         return
 
     import json

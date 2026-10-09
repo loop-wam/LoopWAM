@@ -225,12 +225,13 @@ class RobotVideoDataset(torch.utils.data.Dataset):
         action_video_freq_ratio: int = 1,
         skip_padding_as_possible: bool = False,
         max_padding_retry: int = 3,
-        concat_multi_camera: str = "horizontal", # "horizontal", "vertical", "robotwin", or None
+        concat_multi_camera: str = "horizontal", # "horizontal", "vertical", "robotwin", "robocasa", "robocasa_v2", or None
         override_instruction: Optional[str] = None, # whether to hardcode a specific instruction for all samples, for debugging
         dataset_supervise_action: Optional[Sequence[bool]] = None,
         dataset_prompt_quality_suffix: Optional[Union[str, Sequence[Optional[str]]]] = None,
         dataset_prompt_quality_score: Optional[Any] = None,
         decode_video_sampled_frames_only: bool = False,
+        max_episodes_per_dataset: Optional[Any] = None,
     ):
         self.num_frames = num_frames
         self.action_video_freq_ratio = action_video_freq_ratio
@@ -242,7 +243,7 @@ class RobotVideoDataset(torch.utils.data.Dataset):
         self.video_sample_indices = list(range(0, num_frames, self.action_video_freq_ratio))
         self.decode_video_sampled_frames_only = bool(decode_video_sampled_frames_only)
 
-        self.lerobot_dataset = BaseLerobotDataset(
+        self.lerobot_dataset = self._build_lerobot_dataset(
             dataset_dirs=dataset_dirs,
             shape_meta=OmegaConf.to_container(shape_meta, resolve=True),
             obs_size=num_frames,
@@ -251,6 +252,7 @@ class RobotVideoDataset(torch.utils.data.Dataset):
             is_training_set=is_training_set,
             global_sample_stride=global_sample_stride,
             image_sample_indices=self.video_sample_indices if self.decode_video_sampled_frames_only else None,
+            max_episodes_per_dataset=max_episodes_per_dataset,
         )
 
         self.camera_key = camera_key
@@ -331,7 +333,15 @@ class RobotVideoDataset(torch.utils.data.Dataset):
 
             processor.set_normalizer_from_stats(dataset_stats)
             self.lerobot_dataset.set_processor(processor)
-        
+
+    def _build_lerobot_dataset(self, **kwargs):
+        """Factory for the underlying LeRobot dataset.
+
+        Subclasses can swap in another implementation, such as success-aware
+        episode capping, without duplicating ``__init__``.
+        """
+        return BaseLerobotDataset(**kwargs)
+
     def __len__(self):
         return len(self.lerobot_dataset)
 
@@ -402,6 +412,49 @@ class RobotVideoDataset(torch.utils.data.Dataset):
             )  # [T_video, C, 128, 160]
             bottom = torch.cat([cam_left, cam_right], dim=-1)  # [T_video, C, 128, 320]
             video = torch.cat([cam_top, bottom], dim=-2)  # [T_video, C, 384, 320]
+        elif self.concat_multi_camera == "robocasa":
+            # robocasa365: 3 square cameras. Main view stays 256x256 on the left;
+            # the two wrist views are 128x128, stacked on the right. Canvas is 256x384.
+            if num_cameras != 3:
+                raise ValueError(
+                    f"`concat_multi_camera='robocasa'` requires exactly 3 cameras, got {num_cameras}"
+                )
+            cam_main = transforms_F.resize(
+                video[0],
+                size=[256, 256],
+                interpolation=transforms_F.InterpolationMode.BILINEAR,
+                antialias=True,
+            )
+            cam_aux_top = transforms_F.resize(
+                video[1],
+                size=[128, 128],
+                interpolation=transforms_F.InterpolationMode.BILINEAR,
+                antialias=True,
+            )
+            cam_aux_bottom = transforms_F.resize(
+                video[2],
+                size=[128, 128],
+                interpolation=transforms_F.InterpolationMode.BILINEAR,
+                antialias=True,
+            )
+            right = torch.cat([cam_aux_top, cam_aux_bottom], dim=-2)  # [T_video, C, 256, 128]
+            video = torch.cat([cam_main, right], dim=-1)  # [T_video, C, 256, 384]
+        elif self.concat_multi_camera == "robocasa_v2":
+            # Three 256x256 views side by side. Canvas is 256x768.
+            if num_cameras != 3:
+                raise ValueError(
+                    f"`concat_multi_camera='robocasa_v2'` requires exactly 3 cameras, got {num_cameras}"
+                )
+            cams = [
+                transforms_F.resize(
+                    video[i],
+                    size=[256, 256],
+                    interpolation=transforms_F.InterpolationMode.BILINEAR,
+                    antialias=True,
+                )
+                for i in range(3)
+            ]
+            video = torch.cat(cams, dim=-1)  # [T_video, C, 256, 768]
         elif num_cameras > 1:
             if self.concat_multi_camera == "horizontal":
                 video = torch.cat([video[i] for i in range(num_cameras)], dim=-1)  # [T_video, C, H, num_cameras*W]
@@ -410,7 +463,7 @@ class RobotVideoDataset(torch.utils.data.Dataset):
             else:
                 raise ValueError(
                     f"Invalid concat_multi_camera: {self.concat_multi_camera}. "
-                    "Expected one of: horizontal, vertical, robotwin."
+                    "Expected one of: horizontal, vertical, robotwin, robocasa, robocasa_v2."
                 )
         else:
             video = video.squeeze(0)  # [T_video, C, H, W]

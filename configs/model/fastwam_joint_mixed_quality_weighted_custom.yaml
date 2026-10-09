@@ -1,0 +1,92 @@
+# FastWAM joint mixed-quality model for robocasa365 (11D action / 14D proprio).
+#
+# Same architecture as fastwam_joint_mixed, but the ACTION loss per sample is
+# weighted by the quality score parsed from the prompt ("... Quality: N.").
+#
+# >>> TUNE HERE <<<  action_loss_quality_weights maps score -> action-loss weight.
+# Change these freely between runs (no code change needed):
+#   * score 5 (expert)        -> 1.0  (learn action fully)
+#   * score 4 (rollout succ)  -> 0.6  (partly learn action)
+#   * score 3                 -> 0.3
+#   * score 2 / 1 (failure)   -> 0.0  (video-only, like basic mixed)
+# Weight 0.0 == that source's action is fully masked out for that episode.
+#
+# Also supports string labels low/medium/high if you ever switch to
+# dataset_prompt_quality_suffix instead of numeric scores.
+
+_target_: fastwam.models.wan22.fastwam_joint_mixed_quality_weighted.create_fastwam_joint_mixed_quality_weighted
+model_id: Wan2.2-TI2V-5B
+tokenizer_model_id: Wan2.2-TI2V-5B
+tokenizer_max_len: 128
+load_text_encoder: false
+proprio_dim: ${data.train.processor.proprio_output_dim}
+video_cross_attend_proprio: true
+redirect_common_files: true
+mot_checkpoint_mixed_attn: true
+action_dit_pretrained_path: checkpoints/ActionDiT_linear_interp_Wan22_alphascale_1024hdim.pt
+skip_dit_load_from_pretrain: false
+
+# Beta(a,b) on the noise fraction (same schedule as basic mixed).
+joint_mixed_training:
+  expert_video_beta: [7.0, 1.0]
+  weak_action_beta: [1.0, 7.0]
+
+# >>> TUNE HERE <<<  score/label -> action-loss weight.
+action_loss_quality_weights:
+  1: 0.0
+  2: 0.1
+  3: 0.2
+  4: 0.4
+  5: 1.0
+  low: 0.0
+  medium: 0.3
+  high: 1.0
+
+video_dit_config:
+  has_image_input: false
+  patch_size: [1, 2, 2]
+  in_dim: 48
+  hidden_dim: 3072
+  ffn_dim: 14336
+  freq_dim: 256
+  text_dim: 4096
+  out_dim: 48
+  num_heads: 24
+  attn_head_dim: 128
+  num_layers: 30
+  eps: 1.0e-06
+  seperated_timestep: true
+  require_clip_embedding: false
+  require_vae_embedding: false
+  fuse_vae_embedding_in_latents: true
+  use_gradient_checkpointing: ${model.mot_checkpoint_mixed_attn}
+  video_attention_mask_mode: "first_frame_causal"
+  action_conditioned: false
+  action_dim: ${data.train.processor.action_output_dim}
+  action_group_causal_mask_mode: "group_diagonal"
+
+action_dit_config:
+  action_dim: ${data.train.processor.action_output_dim}
+  hidden_dim: 1024
+  ffn_dim: 4096
+  num_heads: 24
+  attn_head_dim: 128
+  num_layers: 30
+  text_dim: 4096
+  freq_dim: 256
+  eps: 1.0e-06
+  use_gradient_checkpointing: ${model.mot_checkpoint_mixed_attn}
+
+video_scheduler:
+  train_shift: 5.0
+  infer_shift: 5.0
+  num_train_timesteps: 1000
+
+action_scheduler:
+  train_shift: 5.0
+  infer_shift: 5.0
+  num_train_timesteps: 1000
+
+loss:
+  lambda_video: 1.0
+  lambda_action: 1.0

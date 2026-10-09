@@ -1,5 +1,6 @@
 /checkpoints/
 scripts/upload_checkpoints.sh
+scripts/upload_robocasa365.sh
 *.pt
 /runs/
 /data/

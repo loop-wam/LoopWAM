@@ -71,6 +71,7 @@ All 16 Composite-Unseen tasks are held out of both expert data and rollout data.
 | --- | --- |
 | `train_table30_v2.sh` | Real-robot training for UR5, ALOHA, ARX5, and DOS-W1 |
 | `train_robotwin_loopwam.sh` | RoboTwin 2.0 training |
+| `train_robocasa365.sh` | RoboCasa365 mixed-quality training |
 | `checkpoints/` | Released weights, real copies, each with `dataset_stats.json` |
 | `configs/` | Hydra task and data configs |
 | `scripts/setup_env.sh` | Conda env, PyTorch, and `pip install -e .` |
@@ -165,7 +166,7 @@ Real-robot training uses [RoboChallenge Table30-V2](https://loopwam.github.io/).
 
 ## Training
 
-Real-robot scripts default to 8 GPUs. RoboTwin 2.0 defaults to 16 GPUs per node.
+Real-robot scripts default to 8 GPUs. RoboTwin 2.0 defaults to 16 GPUs per node. RoboCasa365 uses `NPROC_PER_NODE` when it is set, otherwise the number of visible GPUs, and falls back to 16 only if that count cannot be detected.
 
 ```bash
 bash train_table30_v2.sh ur5       # UR5
@@ -173,9 +174,10 @@ bash train_table30_v2.sh aloha     # ALOHA
 bash train_table30_v2.sh arx5      # ARX5
 bash train_table30_v2.sh w1        # DOS-W1
 bash train_robotwin_loopwam.sh     # RoboTwin 2.0
+bash train_robocasa365.sh          # RoboCasa365
 ```
 
-Pass a GPU count after the robot name, for example `bash train_table30_v2.sh ur5 1`. RoboTwin takes the GPU count as its first argument.
+Pass a GPU count after the robot name, for example `bash train_table30_v2.sh ur5 1`. RoboTwin takes the GPU count as its first argument. RoboCasa365 keeps the original launch defaults, including `log_every=5` and `save_every=2500`; set `NPROC_PER_NODE` to choose the GPU count.
 
 Real-robot training uses RoboChallenge Table30-V2. Released checkpoints, each with its `dataset_stats.json`:
 
@@ -190,6 +192,8 @@ Real-robot training uses RoboChallenge Table30-V2. Released checkpoints, each wi
 `save_every` is 2500, so a fresh run writes `step_002500.pt`, `step_005000.pt`, and so on. The released step numbers are the checkpoints used for evaluation; they are not multiples of 2500.
 
 RoboTwin 2.0 follows the final mixed-rollout recipe: expert `robotwin2_0_stitched` plus FastWAM, π0.5, and X-VLA rollouts, quality-weighted action loss, `num_frames=65`, `action_video_freq_ratio=8`. Prepare that tree with `scripts/prepare_data.sh` before launching.
+
+RoboCasa365 uses expert demonstrations plus three rollout sources, quality-weighted action loss, and the `robocasa` three-camera stitch (`256x384`). Dataset roots stay on the training cluster under `/mnt/data/dm05/dexmal-aa-wzg-data/robocasa365/`. Normalization stats stay at `/mnt/data/dm05/share/wzg/project/gfwam/robocasa365_norm.json`. Text-embedding caches are the paths already written in `configs/data/robocasa365_mq_3rollout.yaml`.
 
 ## RoboTwin 2.0 evaluation
 
