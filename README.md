@@ -80,7 +80,7 @@ All 16 Composite-Unseen tasks are held out of both expert data and rollout data.
 | `rollout_collect/` | RoboTwin rollout collection for FastWAM, π0.5, and X-VLA |
 | `experiments/robotwin/` | RoboTwin 2.0 evaluation manager and policy |
 | `experiments/robocasa/` | RoboCasa365 policy server |
-| `eval_robocasa365/` | RoboCasa365 simulator client |
+| `experiments/eval_robocasa365/` | RoboCasa365 simulator client |
 | `scripts/` | Training launcher (`train.py`, DeepSpeed / Accelerate configs) |
 | `src/` | Model and dataset code |
 
@@ -273,10 +273,10 @@ python experiments/robocasa/serve_robocasa_policy.py \
   server.port=7891
 ```
 
-On the simulator machine, install RoboCasa at `/workspace/robocasa` (override with `--robocasa_repo` and `--robocasa_workdir`). Then run the client from `eval_robocasa365/`. It sends three PNGs and the 14-dimensional state, converts the returned 11-dimensional action back to the 12-dimensional simulator action, and executes `--replan_steps` actions before asking for the next chunk. The command below runs eight task pairs, 50 trials each, on the `pretrain` split, and does not save videos (`--save_video_every 0`). Change `--server_url` to the machine that is serving the policy.
+On the simulator machine, install RoboCasa at `/workspace/robocasa` (override with `--robocasa_repo` and `--robocasa_workdir`). Then run the client from `experiments/eval_robocasa365/`. It sends three PNGs and the 14-dimensional state, converts the returned 11-dimensional action back to the 12-dimensional simulator action, and executes `--replan_steps` actions before asking for the next chunk. The command below runs eight task pairs, 50 trials each, on the `pretrain` split, and does not save videos (`--save_video_every 0`). Change `--server_url` to the machine that is serving the policy.
 
 ```bash
-cd eval_robocasa365 && \
+cd experiments/eval_robocasa365 && \
 bash robocasa365_inference_client_pro.sh \
   --task_groups "RecycleBottlesByType,WaffleReheat;\
 ArrangeBreadBasket,WeighIngredients;\
@@ -291,5 +291,5 @@ GarnishPancake,ArrangeTea" \
   --run_name robocasa365_eval_parallel_test_unseen1
 ```
 
-The client resumes from its log when the same `--run_name` is used again. Logs go to `eval_robocasa365/logs/eval/<run_name>.log`.
+The client resumes from its log when the same `--run_name` is used again. Logs go to `experiments/eval_robocasa365/logs/eval/<run_name>.log`.
 
