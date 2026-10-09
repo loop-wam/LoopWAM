@@ -33,7 +33,7 @@ Shirt folding, after single-task post-training, moves from 13.20% to 55.56% in t
 
 ### RoboChallenge Table30-V2
 
-30 real-world tasks. One multi-task model per embodiment. Overall score uses task weights 10 / 10 / 7 / 3 for ALOHA, DOS-W1, ARX5, and UR5.
+30 real-world tasks on [RoboChallenge](https://robochallenge.ai/home). One multi-task model per embodiment. Overall score uses task weights 10 / 10 / 7 / 3 for ALOHA, DOS-W1, ARX5, and UR5. How to submit a run is in [RoboChallenge evaluation](#robochallenge-evaluation).
 
 | Method | ALOHA | DOS-W1 | ARX5 | UR5 | Score | SR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -199,6 +199,60 @@ Real-robot training uses RoboChallenge Table30-V2. Released checkpoints, each wi
 RoboTwin 2.0 follows the final mixed-rollout recipe: expert `robotwin2_0_stitched` plus FastWAM, π0.5, and X-VLA rollouts, quality-weighted action loss, `num_frames=65`, `action_video_freq_ratio=8`. Prepare that tree with `scripts/prepare_data.sh` before launching.
 
 RoboCasa365 uses expert demonstrations plus three rollout sources, quality-weighted action loss, and the `robocasa` three-camera stitch (`256x384`). Dataset roots stay on the training cluster under `/mnt/data/dm05/dexmal-aa-wzg-data/robocasa365/`. Normalization stats are computed from the training set on the first run and saved as `dataset_stats.json` in the run directory. Text-embedding caches are the paths already written in `configs/data/robocasa365_mq_3rollout.yaml`.
+
+## RoboChallenge evaluation
+
+Table30-V2 is evaluated on the real robots through [RoboChallenge](https://robochallenge.ai/home). Submit the request on that site. The client that talks to the robot is [RoboChallengeInference](https://github.com/RoboChallenge/RoboChallengeInference). It is not part of this repository. Implement `DummyPolicy` in that repo's `demo.py` so it loads one released checkpoint and returns a list of actions.
+
+Use one checkpoint per embodiment, together with the `dataset_stats.json` beside it. At deployment the policy is conditioned on expert quality, the same setting as `quality_score=5` in the simulator evals.
+
+| Robot | Example tag | Checkpoint |
+| --- | --- | --- |
+| UR5 | `ur5` | `checkpoints/ur5_rollout_subtask_delta/step_029925.pt` |
+| ALOHA | `aloha` | `checkpoints/aloha_rollout_delta_nopackpen/step_061320.pt` |
+| ARX5 | `arx5` | `checkpoints/arx5_newrollout_subtask_delta/step_057355.pt` |
+| DOS-W1 | robot tag on the submission page | `checkpoints/w1_rollout_nofoldlace_delta/step_072970.pt` |
+
+The example client documents the action layout in its [robot notes](https://github.com/RoboChallenge/RoboChallengeInference#robot-specific-notes). ALOHA uses `action_type=joint` and 14 numbers (6 joints and 1 gripper on each arm). ARX5 and UR5 use `leftjoint` and 7 numbers (6 joints and 1 gripper). Camera names are `high`, `left_hand`, and `right_hand`. UR5 has no third camera, so leave out the one that robot does not expose. The example requests 224×224 images and a per-action `duration` of 0.05 seconds.
+
+Install the client and try it against the mock server before asking for a robot:
+
+```bash
+git clone https://github.com/RoboChallenge/RoboChallengeInference.git
+cd RoboChallengeInference
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+In `mock_server/mock_settings.py`, leave only one `ROBOT_TAG` and `RECORD_DATA_DIR` uncommented. The tag must match the episode directory. The checkout includes sample episodes for `aloha`, `arx5`, and `ur5`.
+
+```bash
+cd mock_server && python3 mock_robot_server.py
+```
+
+From the client root, in another terminal:
+
+```bash
+python3 test.py --checkpoint /path/to/checkpoint.pt
+```
+
+`test.py` calls the mock robot, so a shape or camera mismatch shows up before a real job.
+
+Submit on the website:
+
+1. Log in at [robochallenge.ai](https://robochallenge.ai/home) and submit an evaluation request.
+2. Open the submission under My Submissions and copy the Run ID from its detail page.
+3. Wait for the site or email to assign the job. During that window the client below has to be running. It exits when the job finishes. Results appear on My Submissions.
+
+```bash
+python3 demo.py \
+  --user_token <token> \
+  --run_id <run id> \
+  --checkpoint /path/to/checkpoint.pt
+```
+
+`demo.py` polls until that Run ID is ready, reads `/state.pkl`, and posts the actions from `GPUClient.infer`. Keep `action_type` the same for the whole job.
 
 ## RoboTwin 2.0 evaluation
 
