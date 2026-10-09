@@ -1,0 +1,71 @@
+# @package _global_
+#
+# Config for the RoboCasa365 HTTP inference server
+# (experiments/robocasa/serve_robocasa_policy.py).
+#
+# It reuses the training task config so that the model architecture, processor,
+# camera layout (concat_multi_camera=robocasa), action/state dims and
+# normalization all stay byte-for-byte identical to training.
+#
+# The RoboCasa simulator lives in a separate container and talks to this server
+# over HTTP (see eval_robocasa_client_old.py), so this config only needs the
+# model + processor definitions and a few inference-time defaults.
+
+defaults:
+  - train
+  - override /task: robocasa365_join_mq_3rollout
+  - _self_
+
+ckpt: null
+gpu_id: 0
+
+model:
+  # Live T5 encoding at inference (no precomputed text-embedding cache on the
+  # server). skip_dit_load_from_pretrain + null backbone: the full trained
+  # checkpoint is loaded via model.load_checkpoint, so the Wan22/ActionDiT
+  # pretrained initialization is unnecessary.
+  load_text_encoder: true
+  skip_dit_load_from_pretrain: true
+  action_dit_pretrained_path: null
+
+EVALUATION:
+  # Path to dataset_stats.json. null = auto-resolve from the checkpoint's parent
+  # directories (runs/<task>/<run_id>/dataset_stats.json).
+  dataset_stats_path: null
+  device: cuda
+  # null = default to (num_frames - 1) from the task config (32 here).
+  action_horizon: null
+  num_inference_steps: ${eval_num_inference_steps}
+  sigma_shift: null
+  text_cfg_scale: 1.0
+  negative_prompt: ""
+  rand_device: cpu
+  tiled: false
+  # Fixed inference seed. null = nondeterministic sampling each request.
+  # NOTE: save_predicted_video=true internally requires a fixed seed for a
+  # meaningful action-consistency check; set one when enabling video.
+  seed: null
+
+  # ---- Predicted-video debugging (uses the slower joint sampler) ----
+  # false: server runs infer_action (action-only, fast, no video).
+  # true : server runs infer_joint and saves the model's predicted future
+  #        video for inspection. Slower; keep off for success-rate runs.
+  save_predicted_video: false
+  # Where predicted videos land. null = <ckpt_run_dir>/robocasa_eval_predicted_videos.
+  predicted_video_save_root: null
+  predicted_video_fps: 8
+  # When the client does NOT send per-episode metadata, save one predicted clip
+  # every N replan calls (server-side global counter). Mirror the client's
+  # --save_video_every to keep the cadence comparable. 0 = save every call.
+  predicted_video_save_every: 10
+
+server:
+  host: 0.0.0.0
+  port: 7891
+
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: .
+  output_subdir: null
