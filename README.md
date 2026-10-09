@@ -76,6 +76,7 @@ All 16 Composite-Unseen tasks are held out of both expert data and rollout data.
 | `scripts/setup_env.sh` | Conda env, PyTorch, and `pip install -e .` |
 | `scripts/download_pretrained.sh` | Wan2.2-TI2V-5B download and ActionDiT backbone |
 | `scripts/prepare_data.sh` | RoboTwin expert data |
+| `rollout_collect/` | RoboTwin rollout collection for FastWAM, π0.5, and X-VLA |
 | `scripts/` | Training launcher (`train.py`, DeepSpeed / Accelerate configs) |
 | `src/` | Model and dataset code |
 
@@ -136,6 +137,16 @@ If that tree already exists, link it and skip the public download:
 ```bash
 DATA_SRC=/path/to/data bash scripts/prepare_data.sh robotwin
 ```
+
+`rollout_collect/` gathers the three rollout sets in RoboTwin. It writes HDF5 episodes and can resume from what is already saved. Paths to RoboTwin, FastWAM, and X-VLA come from environment variables. Details are in `rollout_collect/README.md`.
+
+```bash
+bash rollout_collect/collect_fastwam.sh task_list.txt rollout_data/fastwam
+bash rollout_collect/collect_pi05.sh task_list.txt rollout_data/pi05
+bash rollout_collect/collect_xvla.sh task_list.txt rollout_data/xvla
+```
+
+`rollout_collect/convert_robotwin_to_lerobot.py` turns those HDF5 episodes into the LeRobot layout used by mixed training.
 
 Before the first training run, cache umT5 embeddings for the task prompts:
 
