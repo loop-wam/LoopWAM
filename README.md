@@ -12,9 +12,9 @@ Expert demonstrations show a robot how to succeed. Deployment shows what happens
 
 | Benchmark | Setting | LoopWAM |
 | --- | --- | --- |
-| [RoboChallenge Table30-V2](https://loopwam.github.io/) | 30 real tasks, 4 embodiments | **43.33%** success, **56.80** score |
 | [RoboTwin 2.0](https://loopwam.github.io/) | 50 bimanual tasks, clean and randomized | **94.5%** average success |
 | [RoboCasa365](https://loopwam.github.io/) | 50 tasks, seen and unseen compositions | **49.5%** overall success |
+| [RoboChallenge Table30-V2](https://loopwam.github.io/) | 30 real tasks, 4 embodiments | **43.33%** success, **56.80** score |
 
 These are the best overall numbers among the methods compared in the submitted paper. No extra embodied-data pretraining is used on RoboTwin 2.0 or RoboCasa365. The video backbone is pretrained Wan2.2.
 
@@ -26,36 +26,7 @@ LoopWAM jointly denoises future video and actions. Bidirectional attention conne
   <img src="https://loopwam.github.io/assets/figures/method.webp" alt="Mixed-quality data trains video and action branches through joint attention, source-dependent noise, quality-weighted supervision, and quality steering." width="820">
 </p>
 
-Three deployment-and-training rounds on Table30-V2 take a single multi-task model per embodiment from an expert-trained policy to the final result:
-
-| Stage | Success | Score |
-| --- | ---: | ---: |
-| Expert-trained | 23.67% | 36.10 |
-| Round 1 | 28.00% | 42.63 |
-| Round 2 | 37.67% | 51.65 |
-| Round 3 | 43.33% | 56.80 |
-
-Shirt folding, after single-task post-training, moves from 13.20% to 55.56% in two further rounds. Numbers are from the [project page](https://loopwam.github.io/) and the paper (Figure 3, Section 4.4).
-
-Click a frame to play the clip. The full set is on the [project page](https://loopwam.github.io/#folding).
-
-| [Overview](https://loopwam.github.io/assets/videos/overview.mp4) | [30 tasks](https://loopwam.github.io/assets/videos/rollout-30-tasks.mp4) | [Shirt folding, success](https://loopwam.github.io/assets/videos/folding/s1.mp4) | [Shirt folding, failure](https://loopwam.github.io/assets/videos/folding/f1.mp4) |
-| --- | --- | --- | --- |
-| [![Overview](https://loopwam.github.io/assets/posters/overview.jpg)](https://loopwam.github.io/assets/videos/overview.mp4) | [![Thirty RoboChallenge rollouts](https://loopwam.github.io/assets/posters/rollout-30-tasks.jpg)](https://loopwam.github.io/assets/videos/rollout-30-tasks.mp4) | [![Shirt folding success](https://loopwam.github.io/assets/posters/folding/s1.jpg)](https://loopwam.github.io/assets/videos/folding/s1.mp4) | [![Shirt folding failure](https://loopwam.github.io/assets/posters/folding/f1.jpg)](https://loopwam.github.io/assets/videos/folding/f1.mp4) |
-
 ## Results
-
-### RoboChallenge Table30-V2
-
-30 real-world tasks on [RoboChallenge](https://robochallenge.ai/home). One multi-task model per embodiment. Overall score uses task weights 10 / 10 / 7 / 3 for ALOHA, DOS-W1, ARX5, and UR5. How to submit a run is in [RoboChallenge evaluation](#robochallenge-evaluation).
-
-| Method | ALOHA | DOS-W1 | ARX5 | UR5 | Score | SR |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| **LoopWAM** | **26.00** | **42.00** | 55.71 | **76.67** | **56.80** | **43.33** |
-| VLA-DM0.5 | 18.00 | 42.00 | **58.57** | 70.00 | 54.42 | 40.67 |
-| LoopWAM (expert-trained) | 8.00 | 38.00 | 24.29 | 26.67 | 36.10 | 23.67 |
-
-Full comparison: [project page, Table 1](https://loopwam.github.io/).
 
 ### RoboTwin 2.0
 
@@ -79,13 +50,42 @@ All 16 Composite-Unseen tasks are held out of both expert data and rollout data.
 | ABot-M0.6 | 79.4 | 48.3 | 7.9 | 46.6 |
 | PRTS | 66.3 | 30.3 | **18.8** | 39.6 |
 
+### RoboChallenge Table30-V2
+
+30 real-world tasks on [RoboChallenge](https://robochallenge.ai/home). One multi-task model per embodiment. Overall score uses task weights 10 / 10 / 7 / 3 for ALOHA, DOS-W1, ARX5, and UR5. How to submit a run is in [RoboChallenge evaluation](#robochallenge-evaluation).
+
+| Method | ALOHA | DOS-W1 | ARX5 | UR5 | Score | SR |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| **LoopWAM** | **26.00** | **42.00** | 55.71 | **76.67** | **56.80** | **43.33** |
+| VLA-DM0.5 | 18.00 | 42.00 | **58.57** | 70.00 | 54.42 | 40.67 |
+| LoopWAM (expert-trained) | 8.00 | 38.00 | 24.29 | 26.67 | 36.10 | 23.67 |
+
+Full comparison: [project page, Table 1](https://loopwam.github.io/).
+
+Three deployment-and-training rounds take a single multi-task model per embodiment from an expert-trained policy to the final result:
+
+| Stage | Success | Score |
+| --- | ---: | ---: |
+| Expert-trained | 23.67% | 36.10 |
+| Round 1 | 28.00% | 42.63 |
+| Round 2 | 37.67% | 51.65 |
+| Round 3 | 43.33% | 56.80 |
+
+Shirt folding, after single-task post-training, moves from 13.20% to 55.56% in two further rounds. Numbers are from the [project page](https://loopwam.github.io/) and the paper (Figure 3, Section 4.4).
+
+Click a frame to play the clip. The full set is on the [project page](https://loopwam.github.io/#folding).
+
+| [Overview](https://loopwam.github.io/assets/videos/overview.mp4) | [30 tasks](https://loopwam.github.io/assets/videos/rollout-30-tasks.mp4) | [Shirt folding, success](https://loopwam.github.io/assets/videos/folding/s1.mp4) | [Shirt folding, failure](https://loopwam.github.io/assets/videos/folding/f1.mp4) |
+| --- | --- | --- | --- |
+| [![Overview](https://loopwam.github.io/assets/posters/overview.jpg)](https://loopwam.github.io/assets/videos/overview.mp4) | [![Thirty RoboChallenge rollouts](https://loopwam.github.io/assets/posters/rollout-30-tasks.jpg)](https://loopwam.github.io/assets/videos/rollout-30-tasks.mp4) | [![Shirt folding success](https://loopwam.github.io/assets/posters/folding/s1.jpg)](https://loopwam.github.io/assets/videos/folding/s1.mp4) | [![Shirt folding failure](https://loopwam.github.io/assets/posters/folding/f1.jpg)](https://loopwam.github.io/assets/videos/folding/f1.mp4) |
+
 ## Repository
 
 | Path | What it is |
 | --- | --- |
-| `train_table30_v2.sh` | Real-robot training for UR5, ALOHA, ARX5, and DOS-W1 |
 | `train_robotwin_loopwam.sh` | RoboTwin 2.0 training |
 | `train_robocasa365.sh` | RoboCasa365 mixed-quality training |
+| `train_table30_v2.sh` | Real-robot training for UR5, ALOHA, ARX5, and DOS-W1 |
 | `checkpoints/` | Released weights, real copies, each with `dataset_stats.json` |
 | `configs/` | Hydra task and data configs |
 | `scripts/setup_env.sh` | Conda env, PyTorch, and `pip install -e .` |
@@ -185,28 +185,28 @@ Real-robot training uses [RoboChallenge Table30-V2](https://loopwam.github.io/).
 
 ## Training
 
-Real-robot scripts default to 8 GPUs. RoboTwin 2.0 defaults to 16 GPUs per node. RoboCasa365 uses `NPROC_PER_NODE` when it is set, otherwise the number of visible GPUs, and falls back to 16 only if that count cannot be detected.
+RoboTwin 2.0 defaults to 16 GPUs per node. RoboCasa365 uses `NPROC_PER_NODE` when it is set, otherwise the number of visible GPUs, and falls back to 16 only if that count cannot be detected. Real-robot scripts default to 8 GPUs.
 
 ```bash
+bash train_robotwin_loopwam.sh     # RoboTwin 2.0
+bash train_robocasa365.sh          # RoboCasa365
 bash train_table30_v2.sh ur5       # UR5
 bash train_table30_v2.sh aloha     # ALOHA
 bash train_table30_v2.sh arx5      # ARX5
 bash train_table30_v2.sh w1        # DOS-W1
-bash train_robotwin_loopwam.sh     # RoboTwin 2.0
-bash train_robocasa365.sh          # RoboCasa365
 ```
 
-Pass a GPU count after the robot name, for example `bash train_table30_v2.sh ur5 1`. RoboTwin takes the GPU count as its first argument. RoboCasa365 keeps the original launch defaults, including `log_every=5` and `save_every=2500`; set `NPROC_PER_NODE` to choose the GPU count.
+RoboTwin takes the GPU count as its first argument. RoboCasa365 keeps the original launch defaults, including `log_every=5` and `save_every=2500`; set `NPROC_PER_NODE` to choose the GPU count. Pass a GPU count after the robot name, for example `bash train_table30_v2.sh ur5 1`.
 
-Real-robot training uses RoboChallenge Table30-V2. Released checkpoints, each with its `dataset_stats.json`:
+Released checkpoints, each with its `dataset_stats.json`:
 
 | Robot | Checkpoint |
 | --- | --- |
+| RoboTwin 2.0 | `checkpoints/robotwin/step_037645.pt` |
 | UR5 | `checkpoints/ur5_rollout_subtask_delta/step_029925.pt` |
 | ALOHA | `checkpoints/aloha_rollout_delta_nopackpen/step_061320.pt` |
 | ARX5 | `checkpoints/arx5_newrollout_subtask_delta/step_057355.pt` |
 | DOS-W1 | `checkpoints/w1_rollout_nofoldlace_delta/step_072970.pt` |
-| RoboTwin 2.0 | `checkpoints/robotwin/step_037645.pt` |
 
 `save_every` is 2500, so a fresh run writes `step_002500.pt`, `step_005000.pt`, and so on. The released step numbers are the checkpoints used for evaluation; they are not multiples of 2500.
 
@@ -214,59 +214,7 @@ RoboTwin 2.0 follows the final mixed-rollout recipe: expert `robotwin2_0_stitche
 
 RoboCasa365 uses expert demonstrations plus three rollout sources, quality-weighted action loss, and the `robocasa` three-camera stitch (`256x384`). Dataset roots stay on the training cluster under `/mnt/data/dm05/dexmal-aa-wzg-data/robocasa365/`. Normalization stats are computed from the training set on the first run and saved as `dataset_stats.json` in the run directory. Text-embedding caches are the paths already written in `configs/data/robocasa365_mq_3rollout.yaml`.
 
-## RoboChallenge evaluation
-
-Table30-V2 is evaluated on the real robots through [RoboChallenge](https://robochallenge.ai/home). Submit the request on that site. The client that talks to the robot is [RoboChallengeInference](https://github.com/RoboChallenge/RoboChallengeInference). It is not part of this repository. Implement `DummyPolicy` in that repo's `demo.py` so it loads one released checkpoint and returns a list of actions.
-
-Use one checkpoint per embodiment, together with the `dataset_stats.json` beside it. At deployment the policy is conditioned on expert quality, the same setting as `quality_score=5` in the simulator evals.
-
-| Robot | Example tag | Checkpoint |
-| --- | --- | --- |
-| UR5 | `ur5` | `checkpoints/ur5_rollout_subtask_delta/step_029925.pt` |
-| ALOHA | `aloha` | `checkpoints/aloha_rollout_delta_nopackpen/step_061320.pt` |
-| ARX5 | `arx5` | `checkpoints/arx5_newrollout_subtask_delta/step_057355.pt` |
-| DOS-W1 | robot tag on the submission page | `checkpoints/w1_rollout_nofoldlace_delta/step_072970.pt` |
-
-The example client documents the action layout in its [robot notes](https://github.com/RoboChallenge/RoboChallengeInference#robot-specific-notes). ALOHA uses `action_type=joint` and 14 numbers (6 joints and 1 gripper on each arm). ARX5 and UR5 use `leftjoint` and 7 numbers (6 joints and 1 gripper). Camera names are `high`, `left_hand`, and `right_hand`. UR5 has no third camera, so leave out the one that robot does not expose. The example requests 224×224 images and a per-action `duration` of 0.05 seconds.
-
-Install the client and try it against the mock server before asking for a robot:
-
-```bash
-git clone https://github.com/RoboChallenge/RoboChallengeInference.git
-cd RoboChallengeInference
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-In `mock_server/mock_settings.py`, leave only one `ROBOT_TAG` and `RECORD_DATA_DIR` uncommented. The tag must match the episode directory. The checkout includes sample episodes for `aloha`, `arx5`, and `ur5`.
-
-```bash
-cd mock_server && python3 mock_robot_server.py
-```
-
-From the client root, in another terminal:
-
-```bash
-python3 test.py --checkpoint /path/to/checkpoint.pt
-```
-
-`test.py` calls the mock robot, so a shape or camera mismatch shows up before a real job.
-
-Submit on the website:
-
-1. Log in at [robochallenge.ai](https://robochallenge.ai/home) and submit an evaluation request.
-2. Open the submission under My Submissions and copy the Run ID from its detail page.
-3. Wait for the site or email to assign the job. During that window the client below has to be running. It exits when the job finishes. Results appear on My Submissions.
-
-```bash
-python3 demo.py \
-  --user_token <token> \
-  --run_id <run id> \
-  --checkpoint /path/to/checkpoint.pt
-```
-
-`demo.py` polls until that Run ID is ready, reads `/state.pkl`, and posts the actions from `GPUClient.infer`. Keep `action_type` the same for the whole job.
+Real-robot training uses RoboChallenge Table30-V2. The four embodiment rows above are those released checkpoints.
 
 ## RoboTwin 2.0 evaluation
 
@@ -362,4 +310,58 @@ GarnishPancake,ArrangeTea" \
 ```
 
 The client resumes from its log when the same `--run_name` is used again. Logs go to `experiments/robocasa/logs/eval/<run_name>.log`.
+
+## RoboChallenge evaluation
+
+Table30-V2 is evaluated on the real robots through [RoboChallenge](https://robochallenge.ai/home). Submit the request on that site. The client that talks to the robot is [RoboChallengeInference](https://github.com/RoboChallenge/RoboChallengeInference). It is not part of this repository. Implement `DummyPolicy` in that repo's `demo.py` so it loads one released checkpoint and returns a list of actions.
+
+Use one checkpoint per embodiment, together with the `dataset_stats.json` beside it. At deployment the policy is conditioned on expert quality, the same setting as `quality_score=5` in the simulator evals.
+
+| Robot | Example tag | Checkpoint |
+| --- | --- | --- |
+| UR5 | `ur5` | `checkpoints/ur5_rollout_subtask_delta/step_029925.pt` |
+| ALOHA | `aloha` | `checkpoints/aloha_rollout_delta_nopackpen/step_061320.pt` |
+| ARX5 | `arx5` | `checkpoints/arx5_newrollout_subtask_delta/step_057355.pt` |
+| DOS-W1 | robot tag on the submission page | `checkpoints/w1_rollout_nofoldlace_delta/step_072970.pt` |
+
+The example client documents the action layout in its [robot notes](https://github.com/RoboChallenge/RoboChallengeInference#robot-specific-notes). ALOHA uses `action_type=joint` and 14 numbers (6 joints and 1 gripper on each arm). ARX5 and UR5 use `leftjoint` and 7 numbers (6 joints and 1 gripper). Camera names are `high`, `left_hand`, and `right_hand`. UR5 has no third camera, so leave out the one that robot does not expose. The example requests 224×224 images and a per-action `duration` of 0.05 seconds.
+
+Install the client and try it against the mock server before asking for a robot:
+
+```bash
+git clone https://github.com/RoboChallenge/RoboChallengeInference.git
+cd RoboChallengeInference
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+In `mock_server/mock_settings.py`, leave only one `ROBOT_TAG` and `RECORD_DATA_DIR` uncommented. The tag must match the episode directory. The checkout includes sample episodes for `aloha`, `arx5`, and `ur5`.
+
+```bash
+cd mock_server && python3 mock_robot_server.py
+```
+
+From the client root, in another terminal:
+
+```bash
+python3 test.py --checkpoint /path/to/checkpoint.pt
+```
+
+`test.py` calls the mock robot, so a shape or camera mismatch shows up before a real job.
+
+Submit on the website:
+
+1. Log in at [robochallenge.ai](https://robochallenge.ai/home) and submit an evaluation request.
+2. Open the submission under My Submissions and copy the Run ID from its detail page.
+3. Wait for the site or email to assign the job. During that window the client below has to be running. It exits when the job finishes. Results appear on My Submissions.
+
+```bash
+python3 demo.py \
+  --user_token <token> \
+  --run_id <run id> \
+  --checkpoint /path/to/checkpoint.pt
+```
+
+`demo.py` polls until that Run ID is ready, reads `/state.pkl`, and posts the actions from `GPUClient.infer`. Keep `action_type` the same for the whole job.
 
