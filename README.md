@@ -141,9 +141,12 @@ If that tree already exists, link it and skip the public download:
 DATA_SRC=/path/to/data bash scripts/prepare_data.sh robotwin
 ```
 
-`rollout_collect/` gathers the three rollout sets in RoboTwin. It writes HDF5 episodes and can resume from what is already saved. Paths to RoboTwin, FastWAM, and X-VLA come from environment variables. Details are in `rollout_collect/README.md`.
+`rollout_collect/` gathers the three rollout sets in RoboTwin. It writes HDF5 episodes and can resume from what is already saved. The simulator root is [loop-wam/Robotwin-Rollout](https://github.com/loop-wam/Robotwin-Rollout). Clone it and set `ROBOTWIN_ROOT` to that checkout. FastWAM and X-VLA paths come from environment variables. Details are in `rollout_collect/README.md`.
 
 ```bash
+git clone https://github.com/loop-wam/Robotwin-Rollout.git
+export ROBOTWIN_ROOT=$PWD/Robotwin-Rollout
+
 bash rollout_collect/collect_fastwam.sh task_list.txt rollout_data/fastwam
 bash rollout_collect/collect_pi05.sh task_list.txt rollout_data/pi05
 bash rollout_collect/collect_xvla.sh task_list.txt rollout_data/xvla

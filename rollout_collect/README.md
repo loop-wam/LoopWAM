@@ -10,7 +10,7 @@
 | pi05 | `ROBOTWIN_ROOT` | `$ROBOTWIN_ROOT/script/eval_policy_gwx.py`，策略在 `$ROBOTWIN_ROOT/policy/pi05` |
 | fastwam | `ROBOTWIN_ROOT` `FASTWAM_ROOT` `CKPT` | 同上，策略在 `$FASTWAM_ROOT/experiments/robotwin/fastwam_policy` |
 
-`ROBOTWIN_ROOT` 是包含 `envs/`、`task_config/`、`run_xvla.py`、`script/eval_policy_gwx.py` 的 RoboTwin 根目录。`FASTWAM_ROOT` 是包含 `configs/sim_robotwin.yaml` 和 `experiments/robotwin/fastwam_policy` 的 FastWAM 根目录。`XVLA_REPO_ROOT` 是包含 `models` 包的 X-VLA 仓库。`MODEL_PATH` 是 XVLA checkpoint 目录。
+`ROBOTWIN_ROOT` 是 [loop-wam/Robotwin-Rollout](https://github.com/loop-wam/Robotwin-Rollout) 的检出目录，需要包含 `envs/`、`task_config/`、`run_xvla.py`、`script/eval_policy_gwx.py`。`FASTWAM_ROOT` 是包含 `configs/sim_robotwin.yaml` 和 `experiments/robotwin/fastwam_policy` 的 FastWAM 根目录。`XVLA_REPO_ROOT` 是包含 `models` 包的 X-VLA 仓库。`MODEL_PATH` 是 XVLA checkpoint 目录。
 
 可选：`PROCESSOR_PATH`（默认等于 `MODEL_PATH`）、`DATASET_STATS_PATH`（默认沿 `CKPT` 的上级目录找 `dataset_stats.json`）、`EVAL_NUM_EPISODES`、`TASK_CONFIG`、`GPU`、`SEED`。
 
@@ -31,7 +31,8 @@
 在任意工作目录执行脚本。`task_list.txt` 和保存路径相对当前目录解析。
 
 ```bash
-export ROBOTWIN_ROOT=/path/to/RoboTwin
+git clone https://github.com/loop-wam/Robotwin-Rollout.git
+export ROBOTWIN_ROOT=$PWD/Robotwin-Rollout
 export XVLA_REPO_ROOT=/path/to/X-VLA
 export MODEL_PATH=/path/to/X-VLA-checkpoints
 export FASTWAM_ROOT=/path/to/FastWAM
