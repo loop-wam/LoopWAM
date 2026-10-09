@@ -246,6 +246,30 @@ def main(cfg: DictConfig):
     _append_override(overrides, "multi_gpu", cfg.EVALUATION.get("multi_gpu", False))
     _append_override(overrides, "video_device", cfg.EVALUATION.get("video_device", "cuda:1"))
     _append_override(overrides, "action_device", cfg.EVALUATION.get("action_device", "cuda:0"))
+    _append_override(overrides, "binarize_gripper", cfg.EVALUATION.get("binarize_gripper", False))
+    _append_override(
+        overrides,
+        "gripper_binarize_low",
+        cfg.EVALUATION.get("gripper_binarize_low", 0.3),
+    )
+    _append_override(
+        overrides,
+        "gripper_binarize_high",
+        cfg.EVALUATION.get("gripper_binarize_high", 0.7),
+    )
+    _append_override(
+        overrides,
+        "gripper_binarize_mid_delta",
+        cfg.EVALUATION.get("gripper_binarize_mid_delta", 0.05),
+    )
+    _append_override(overrides, "smooth_action_chunk", cfg.EVALUATION.get("smooth_action_chunk", False))
+    _append_override(overrides, "smooth_upsample_factor", cfg.EVALUATION.get("smooth_upsample_factor", 2))
+    _append_override(overrides, "smooth_savgol_window", cfg.EVALUATION.get("smooth_savgol_window", 21))
+    _append_override(
+        overrides,
+        "smooth_savgol_polyorder",
+        cfg.EVALUATION.get("smooth_savgol_polyorder", 3),
+    )
 
     cmd = [
         sys.executable,

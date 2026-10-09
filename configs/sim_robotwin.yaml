@@ -2,7 +2,7 @@
 
 defaults:
   - train
-  - override /task: robotwin_uncond_3cam_384_1e-4
+  - override /task: robotwin_quality_score_3low_1cam_stitched_384_1e-4_action_weighted
   - _self_
 
 ckpt: null
@@ -44,6 +44,16 @@ EVALUATION:
   save_denoised_video: false
   denoised_video_save_root: null
   denoised_video_fps: 8
+  # Gripper post-process: <low -> 0; >high -> 1; mid band subtract mid_delta
+  binarize_gripper: false
+  gripper_binarize_low: 0.3
+  gripper_binarize_high: 0.7
+  gripper_binarize_mid_delta: 0.05
+  # DreamZero action-chunk smoothing on full predicted horizon, then execute first replan_steps
+  smooth_action_chunk: false
+  smooth_upsample_factor: 2
+  smooth_savgol_window: 21
+  smooth_savgol_polyorder: 3
 
   # Runtime inputs
   dataset_stats_path: null

@@ -42,6 +42,100 @@ def _maybe_silence_logging() -> None:
     logger.setLevel(logging.CRITICAL)
 
 
+def _binarize_robotwin_gripper(
+    action: np.ndarray,
+    low_threshold: float = 0.3,
+    high_threshold: float = 0.7,
+    mid_delta: float = 0.05,
+) -> np.ndarray:
+    """Hysteresis-style gripper post-process for RoboTwin qpos action.
+
+    Layout is [left_arm(6), left_gripper(1), right_arm(6), right_gripper(1)].
+    Values < low_threshold -> 0 (closed); values > high_threshold -> 1 (open);
+    values in [low_threshold, high_threshold] are reduced by mid_delta.
+    """
+    action = np.asarray(action, dtype=np.float32).copy()
+    if action.ndim == 2:
+        for i in range(action.shape[0]):
+            action[i] = _binarize_robotwin_gripper(
+                action[i],
+                low_threshold=low_threshold,
+                high_threshold=high_threshold,
+                mid_delta=mid_delta,
+            )
+        return action
+    if action.ndim != 1:
+        raise ValueError(f"Expected action shape [D] or [T,D], got {action.shape}")
+    dim = int(action.shape[0])
+    if dim < 2 or dim % 2 != 0:
+        raise ValueError(f"Expected even dual-arm action dim (>=2), got {dim}")
+    if float(low_threshold) > float(high_threshold):
+        raise ValueError(
+            f"low_threshold ({low_threshold}) must be <= high_threshold ({high_threshold})"
+        )
+    left_gripper_idx = dim // 2 - 1
+    right_gripper_idx = dim - 1
+    for idx in (left_gripper_idx, right_gripper_idx):
+        value = float(action[idx])
+        if value < low_threshold:
+            action[idx] = 0.0
+        elif value > high_threshold:
+            action[idx] = 1.0
+        else:
+            action[idx] = float(np.clip(value - float(mid_delta), 0.0, 1.0))
+    return action
+
+
+def _smooth_action_chunk_dreamzero(
+    action_chunk: np.ndarray,
+    *,
+    upsample_factor: int = 2,
+    window_length: int = 21,
+    polyorder: int = 3,
+) -> np.ndarray:
+    """DreamZero action-chunk smoothing: 2x cubic upsample → Savitzky–Golay → downsample.
+
+    Applied on the full predicted chunk (e.g. T=64) before taking the first
+    ``replan_steps`` actions for execution, so the filter sees more temporal context.
+    """
+    from scipy.interpolate import interp1d
+    from scipy.signal import savgol_filter
+
+    action_chunk = np.asarray(action_chunk, dtype=np.float64)
+    if action_chunk.ndim != 2:
+        raise ValueError(f"Expected action chunk [T, D], got {action_chunk.shape}")
+    t_len, _ = action_chunk.shape
+    if t_len < 2:
+        return action_chunk.astype(np.float32)
+
+    upsample_factor = int(max(1, upsample_factor))
+    t = np.arange(t_len, dtype=np.float64)
+    t_up = np.linspace(0.0, t_len - 1, t_len * upsample_factor, dtype=np.float64)
+    upsampled = interp1d(t, action_chunk, axis=0, kind="cubic", assume_sorted=True)(t_up)
+
+    up_len = upsampled.shape[0]
+    # window must be odd, <= length, and > polyorder
+    max_window = up_len if up_len % 2 == 1 else up_len - 1
+    window = min(int(window_length), max_window)
+    if window % 2 == 0:
+        window -= 1
+    if window <= int(polyorder):
+        logger.warning(
+            "Skip action-chunk smoothing: upsampled length=%d too short for "
+            "window=%d polyorder=%d.",
+            up_len,
+            window_length,
+            polyorder,
+        )
+        return action_chunk.astype(np.float32)
+
+    smoothed_up = savgol_filter(
+        upsampled, window_length=window, polyorder=int(polyorder), axis=0, mode="interp"
+    )
+    smoothed = interp1d(t_up, smoothed_up, axis=0, kind="cubic", assume_sorted=True)(t)
+    return smoothed.astype(np.float32)
+
+
 def _is_none_like(value: Any) -> bool:
     if value is None:
         return True
@@ -175,6 +269,14 @@ class WorldActionRobotWinPolicy:
         save_denoised_video: bool = False,
         denoised_video_save_root: Optional[Path] = None,
         denoised_video_fps: int = 8,
+        binarize_gripper: bool = False,
+        gripper_binarize_low: float = 0.3,
+        gripper_binarize_high: float = 0.7,
+        gripper_binarize_mid_delta: float = 0.05,
+        smooth_action_chunk: bool = False,
+        smooth_upsample_factor: int = 2,
+        smooth_savgol_window: int = 21,
+        smooth_savgol_polyorder: int = 3,
     ) -> None:
         _maybe_silence_logging()
         model_cfg_copy = OmegaConf.create(OmegaConf.to_container(model_cfg, resolve=True))
@@ -227,6 +329,14 @@ class WorldActionRobotWinPolicy:
         self.save_denoised_video = bool(save_denoised_video)
         self.denoised_video_save_root = denoised_video_save_root
         self.denoised_video_fps = int(denoised_video_fps)
+        self.binarize_gripper = bool(binarize_gripper)
+        self.gripper_binarize_low = float(gripper_binarize_low)
+        self.gripper_binarize_high = float(gripper_binarize_high)
+        self.gripper_binarize_mid_delta = float(gripper_binarize_mid_delta)
+        self.smooth_action_chunk = bool(smooth_action_chunk)
+        self.smooth_upsample_factor = int(smooth_upsample_factor)
+        self.smooth_savgol_window = int(smooth_savgol_window)
+        self.smooth_savgol_polyorder = int(smooth_savgol_polyorder)
         self._video_frame_stride = max(
             1,
             self.action_horizon // max(1, self._num_video_frames - 1),
@@ -240,7 +350,9 @@ class WorldActionRobotWinPolicy:
 
         logger.info(
             "Initialized WorldActionRobotWinPolicy | ckpt=%s | stats=%s | horizon=%d | replan=%d | "
-            "multi_gpu=%s | prompt_quality_suffix=%s | prompt_quality_score=%s",
+            "multi_gpu=%s | prompt_quality_suffix=%s | prompt_quality_score=%s | "
+            "binarize_gripper=%s (low=%.2f, high=%.2f, mid_delta=%.2f) | smooth_action_chunk=%s "
+            "(upsample=%d, window=%d, poly=%d)",
             checkpoint_path,
             dataset_stats_path,
             self.action_horizon,
@@ -248,6 +360,14 @@ class WorldActionRobotWinPolicy:
             self._multi_gpu,
             self.prompt_quality_suffix,
             self.prompt_quality_score,
+            self.binarize_gripper,
+            self.gripper_binarize_low,
+            self.gripper_binarize_high,
+            self.gripper_binarize_mid_delta,
+            self.smooth_action_chunk,
+            self.smooth_upsample_factor,
+            self.smooth_savgol_window,
+            self.smooth_savgol_polyorder,
         )
 
     def _denoised_video_path(self, *, success: Optional[bool] = None) -> Path:
@@ -374,6 +494,22 @@ class WorldActionRobotWinPolicy:
 
         action_tensor = pred["action"]  # [T, D]
         action_chunk = self._denormalize_action(action_tensor)[0]  # [T, D]
+        # Smooth the full predicted chunk (e.g. 64), then `_fill_action_queue`
+        # keeps only the first `replan_steps` (e.g. 32) for execution.
+        if self.smooth_action_chunk:
+            action_chunk = _smooth_action_chunk_dreamzero(
+                action_chunk,
+                upsample_factor=self.smooth_upsample_factor,
+                window_length=self.smooth_savgol_window,
+                polyorder=self.smooth_savgol_polyorder,
+            )
+        if self.binarize_gripper:
+            action_chunk = _binarize_robotwin_gripper(
+                action_chunk,
+                low_threshold=self.gripper_binarize_low,
+                high_threshold=self.gripper_binarize_high,
+                mid_delta=self.gripper_binarize_mid_delta,
+            )
         if self.save_denoised_video:
             self._record_denoised_video_prediction(pred["video"])
         return action_chunk
@@ -530,6 +666,49 @@ def get_model(usr_args: Dict[str, Any]):
     if _is_none_like(prompt_quality_score):
         prompt_quality_score = None
 
+    binarize_gripper = _parse_bool(
+        usr_args.get("binarize_gripper", cfg.EVALUATION.get("binarize_gripper", False))
+    )
+    gripper_binarize_low = float(
+        usr_args.get(
+            "gripper_binarize_low",
+            cfg.EVALUATION.get("gripper_binarize_low", 0.3),
+        )
+    )
+    gripper_binarize_high = float(
+        usr_args.get(
+            "gripper_binarize_high",
+            cfg.EVALUATION.get("gripper_binarize_high", 0.7),
+        )
+    )
+    gripper_binarize_mid_delta = float(
+        usr_args.get(
+            "gripper_binarize_mid_delta",
+            cfg.EVALUATION.get("gripper_binarize_mid_delta", 0.05),
+        )
+    )
+    smooth_action_chunk = _parse_bool(
+        usr_args.get("smooth_action_chunk", cfg.EVALUATION.get("smooth_action_chunk", False))
+    )
+    smooth_upsample_factor = int(
+        usr_args.get(
+            "smooth_upsample_factor",
+            cfg.EVALUATION.get("smooth_upsample_factor", 2),
+        )
+    )
+    smooth_savgol_window = int(
+        usr_args.get(
+            "smooth_savgol_window",
+            cfg.EVALUATION.get("smooth_savgol_window", 21),
+        )
+    )
+    smooth_savgol_polyorder = int(
+        usr_args.get(
+            "smooth_savgol_polyorder",
+            cfg.EVALUATION.get("smooth_savgol_polyorder", 3),
+        )
+    )
+
     policy = WorldActionRobotWinPolicy(
         model_cfg=cfg.model,
         processor_cfg=cfg.data.train.processor,
@@ -556,6 +735,14 @@ def get_model(usr_args: Dict[str, Any]):
         save_denoised_video=save_denoised_video,
         denoised_video_save_root=denoised_video_save_root,
         denoised_video_fps=denoised_video_fps,
+        binarize_gripper=binarize_gripper,
+        gripper_binarize_low=gripper_binarize_low,
+        gripper_binarize_high=gripper_binarize_high,
+        gripper_binarize_mid_delta=gripper_binarize_mid_delta,
+        smooth_action_chunk=smooth_action_chunk,
+        smooth_upsample_factor=smooth_upsample_factor,
+        smooth_savgol_window=smooth_savgol_window,
+        smooth_savgol_polyorder=smooth_savgol_polyorder,
     )
     return policy
 

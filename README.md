@@ -266,7 +266,7 @@ What that command does:
 4. Each worker is `experiments/robotwin/eval_robotwin_single.py`. It links `experiments/robotwin/fastwam_policy` to `<RoboTwin>/policy/fastwam_policy` when that link is missing, then calls `script/eval_policy.py` inside the RoboTwin checkout.
 5. `fastwam_policy/deploy_policy.py` rebuilds the Hydra config, loads `dataset_stats.json` and the checkpoint, and steps the simulator with absolute joint positions. The policy samples 64 actions and executes 32 before replanning. `prompt_quality_score=5` asks for the expert-quality prompt used at deployment. `skip_get_obs_within_replan=true` skips RGB rendering inside one action chunk; set it to `false` when you need every frame rendered.
 
-`configs/sim_robotwin.yaml` defaults to `task=robotwin_uncond_3cam_384_1e-4`. The command above replaces that with the mixed-rollout task, matching the released checkpoint.
+`configs/sim_robotwin.yaml` defaults to `task=robotwin_quality_score_3low_1cam_stitched_384_1e-4_action_weighted`, the mixed-rollout task that matches the released checkpoint. Gripper binarization and action-chunk smoothing are off unless `EVALUATION.binarize_gripper` or `EVALUATION.smooth_action_chunk` is set.
 
 Results are written under `evaluate_results/robotwin/`. For `checkpoints/robotwin/step_037645.pt` the run directory is `evaluate_results/robotwin/step_037645/robotwin/step_037645/<timestamp>/`. The manager writes `manager.log`, `summary.csv`, `summary.json`, and `failed_tasks.txt`. Each task directory contains `_result_clean.txt` and `_result_random.txt`; the last number in each file is that phase's success rate. `summary.json` reports the mean of both phases. A worker failure stops the remaining tasks and records the return code in `failed_tasks.txt`.
 
