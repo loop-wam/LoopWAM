@@ -78,6 +78,7 @@ All 16 Composite-Unseen tasks are held out of both expert data and rollout data.
 | `scripts/download_pretrained.sh` | Wan2.2-TI2V-5B download and ActionDiT backbone |
 | `scripts/prepare_data.sh` | RoboTwin expert data |
 | `rollout_collect/` | RoboTwin rollout collection for FastWAM, π0.5, and X-VLA |
+| `experiments/robotwin/` | RoboTwin 2.0 evaluation manager and policy |
 | `scripts/` | Training launcher (`train.py`, DeepSpeed / Accelerate configs) |
 | `src/` | Model and dataset code |
 
@@ -187,7 +188,7 @@ Real-robot training uses RoboChallenge Table30-V2. Released checkpoints, each wi
 | ALOHA | `checkpoints/aloha_rollout_delta_nopackpen/step_061320.pt` |
 | ARX5 | `checkpoints/arx5_newrollout_subtask_delta/step_057355.pt` |
 | DOS-W1 | `checkpoints/w1_rollout_nofoldlace_delta/step_072970.pt` |
-| RoboTwin 2.0 | `checkpoints/robotwin_ck/step_037645.pt` |
+| RoboTwin 2.0 | `checkpoints/robotwin/step_037645.pt` |
 
 `save_every` is 2500, so a fresh run writes `step_002500.pt`, `step_005000.pt`, and so on. The released step numbers are the checkpoints used for evaluation; they are not multiples of 2500.
 
@@ -197,15 +198,25 @@ RoboCasa365 uses expert demonstrations plus three rollout sources, quality-weigh
 
 ## RoboTwin 2.0 evaluation
 
-The released checkpoint is `checkpoints/robotwin_ck/step_037645.pt`, with `checkpoints/robotwin_ck/dataset_stats.json`. Evaluation uses unseen instructions, and asks for expert quality (`prompt_quality_score=5`). The policy predicts 64 actions and executes 32 before replanning. Video and action run on a GPU pair (`cuda:1` / `cuda:0`), so `MULTIRUN.num_gpus=8` evaluates four tasks at a time. Clean and randomized scenes are both included.
+Released weights: `checkpoints/robotwin/step_037645.pt` and `checkpoints/robotwin/dataset_stats.json`. Reported result: clean **94.6%**, randomized **94.4%**, average **94.5%**.
 
-Install the simulator and assets from the [RoboTwin repository](https://github.com/RoboTwin-Platform/RoboTwin), including cuRobo, then:
+The simulator is not in this repository. Install [RoboTwin](https://github.com/RoboTwin-Platform/RoboTwin), including cuRobo and the task assets, at `third_party/RoboTwin`, or pass another checkout with `EVALUATION.robotwin_root`. That checkout must contain `script/eval_policy.py`, `policy/`, and `task_config/_eval_step_limit.yml`. The task list in `_eval_step_limit.yml` is the full 50-task suite.
+
+Evaluation also loads the Wan2.2 text encoder. Download it once if `checkpoints/` does not already contain the Wan files:
+
+```bash
+bash scripts/download_pretrained.sh
+```
+
+`configs/sim_robotwin.yaml` skips loading the ActionDiT backbone from scratch (`skip_dit_load_from_pretrain=true`). The released `.pt` supplies the trained weights.
+
+Run from the repository root:
 
 ```bash
 python experiments/robotwin/run_robotwin_manager.py \
   task=robotwin_quality_score_3low_1cam_stitched_384_1e-4_action_weighted \
-  ckpt=./checkpoints/robotwin_ck/step_037645.pt \
-  EVALUATION.dataset_stats_path=./checkpoints/robotwin_ck/dataset_stats.json \
+  ckpt=./checkpoints/robotwin/step_037645.pt \
+  EVALUATION.dataset_stats_path=./checkpoints/robotwin/dataset_stats.json \
   EVALUATION.prompt_quality_suffix=null \
   EVALUATION.prompt_quality_score=5 \
   EVALUATION.instruction_type=unseen \
@@ -227,7 +238,15 @@ python experiments/robotwin/run_robotwin_manager.py \
   MULTIRUN.max_tasks_per_gpu=1
 ```
 
-`EVALUATION.skip_get_obs_within_replan=true` skips RGB rendering inside one action chunk. Set it to `false` when you need a fully rendered video. To use fewer GPUs, pass an even `MULTIRUN.num_gpus` (each task takes two devices).
+What that command does:
 
-Reported result on this checkpoint: clean **94.6%**, randomized **94.4%**, average **94.5%**.
+1. `run_robotwin_manager.py` reads every task name in `third_party/RoboTwin/task_config/_eval_step_limit.yml`. Set `EVALUATION.task_name=<one task>` or `EVALUATION.task_names=[a,b]` to run a subset.
+2. Each task is evaluated twice: `demo_clean`, then `demo_randomized`. Each phase runs `EVALUATION.eval_num_episodes` episodes (100 in `configs/sim_robotwin.yaml`) with unseen instructions.
+3. With `MULTIRUN.multi_gpu=true` and `num_gpus=8`, the manager pairs devices `(0,1)`, `(2,3)`, `(4,5)`, `(6,7)` and keeps one task on each pair. `max_tasks_per_gpu=1` means one task per pair. `num_gpus` must be even. Video runs on `cuda:1` of the pair and the action expert on `cuda:0`, leaving the simulator on the action GPU.
+4. Each worker is `experiments/robotwin/eval_robotwin_single.py`. It links `experiments/robotwin/fastwam_policy` to `<RoboTwin>/policy/fastwam_policy` when that link is missing, then calls `script/eval_policy.py` inside the RoboTwin checkout.
+5. `fastwam_policy/deploy_policy.py` rebuilds the Hydra config, loads `dataset_stats.json` and the checkpoint, and steps the simulator with absolute joint positions. The policy samples 64 actions and executes 32 before replanning. `prompt_quality_score=5` asks for the expert-quality prompt used at deployment. `skip_get_obs_within_replan=true` skips RGB rendering inside one action chunk; set it to `false` when you need every frame rendered.
+
+`configs/sim_robotwin.yaml` defaults to `task=robotwin_uncond_3cam_384_1e-4`. The command above replaces that with the mixed-rollout task, matching the released checkpoint.
+
+Results are written under `evaluate_results/robotwin/`. For `checkpoints/robotwin/step_037645.pt` the run directory is `evaluate_results/robotwin/step_037645/robotwin/step_037645/<timestamp>/`. The manager writes `manager.log`, `summary.csv`, `summary.json`, and `failed_tasks.txt`. Each task directory contains `_result_clean.txt` and `_result_random.txt`; the last number in each file is that phase's success rate. `summary.json` reports the mean of both phases. A worker failure stops the remaining tasks and records the return code in `failed_tasks.txt`.
 

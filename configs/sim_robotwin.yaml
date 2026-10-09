@@ -1,0 +1,83 @@
+# @package _global_
+
+defaults:
+  - train
+  - override /task: robotwin_uncond_3cam_384_1e-4
+  - _self_
+
+ckpt: null
+gpu_id: 0
+
+model:
+  load_text_encoder: true
+  skip_dit_load_from_pretrain: true
+  action_dit_pretrained_path: null
+
+EVALUATION:
+  robotwin_root: third_party/RoboTwin
+  policy_name: fastwam_policy
+  task_name: null
+  task_config: demo_randomized
+  instruction_type: unseen
+  eval_num_episodes: 100
+  # Timestamp basename only; full path is
+  # ./evaluate_results/robotwin/<ckpt_task>/<ckpt_run_id>[/<extra_name>]/<step>/<timestamp>/
+  output_dir: ./evaluate_results/robotwin/_runs/${now:%Y%m%d_%H%M%S}
+
+  # Action inference
+  action_horizon: null
+  replan_steps: 24
+  num_inference_steps: ${eval_num_inference_steps}
+  sigma_shift: null
+  text_cfg_scale: 1.0
+  negative_prompt: ""
+  # null = no suffix (robotwin_uncond, etc.); "high" / "low" for quality-trained checkpoints
+  prompt_quality_suffix: null
+  # null = no numeric score; 1-5 for quality-score-trained checkpoints (overrides suffix when set)
+  prompt_quality_score: null
+  rand_device: cpu
+  tiled: false
+  timing_enabled: false
+  skip_get_obs_within_replan: true
+  # Save video_expert denoised videos from joint inference for each replan.
+  # When enabled, evaluation uses the slower video+action joint sampler.
+  save_denoised_video: false
+  denoised_video_save_root: null
+  denoised_video_fps: 8
+
+  # Runtime inputs
+  dataset_stats_path: null
+  device: cuda
+  # Split model across two GPUs. Default layout reserves cuda:0 for RoboTwin sim/curobo:
+  # cuda:0 = action expert, cuda:1 = vae + text encoder + video expert
+  multi_gpu: false
+  video_device: cuda:1
+  action_device: cuda:0
+
+  # Save policy rollout trajectories as RoboTwin-style HDF5 under rollout_save_root/{task}/{task_config}/
+  save_rollout: false
+  rollout_save_root: ./data/robotwin2_0-ours/raw_data/4task_rollout
+  rollout_save_only_success: false
+  # Append rollouts after an existing batch (auto episode index + env seed cursor).
+  rollout_resume: false
+  rollout_episode_offset: 0
+  eval_start_seed: null
+  # If set, manager only runs these tasks (null = all tasks in _eval_step_limit.yml)
+  task_names: null
+  # Suppress terminal prints/logs; eval logs still saved under evaluate_results/
+  quiet: false
+
+MULTIRUN:
+  enabled: false
+  num_gpus: 8
+  gpu_start: 0
+  max_tasks_per_gpu: 2
+  # Pair GPUs as (0,1),(2,3),... and run one eval worker per pair
+  multi_gpu: false
+
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: .
+  output_subdir: null
