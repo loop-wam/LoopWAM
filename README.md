@@ -90,6 +90,7 @@ Click a frame to play the clip. The full set is on the [project page](https://lo
 | `configs/` | Hydra task and data configs |
 | `scripts/setup_env.sh` | Conda env, PyTorch, and `pip install -e .` |
 | `scripts/download_pretrained.sh` | Wan2.2-TI2V-5B download and ActionDiT backbone |
+| `scripts/prepare_eval.sh` | Soft-link RoboTwin assets / cuRobo / policy; download eval checkpoints |
 | `scripts/prepare_data.sh` | RoboTwin expert data |
 | `rollout_collect/` | RoboTwin rollout collection for FastWAM, π0.5, and X-VLA |
 | `experiments/robotwin/` | RoboTwin 2.0 evaluation manager and policy |
@@ -218,23 +219,27 @@ Real-robot training uses RoboChallenge Table30-V2. The four embodiment rows abov
 
 ## RoboTwin 2.0 evaluation
 
-Released weights: `checkpoints/robotwin/step_037645.pt` and `checkpoints/robotwin/dataset_stats.json`. Reported result: clean **94.6%**, randomized **94.4%**, average **94.5%**.
+Released weights: `checkpoints/robotwin/step_037645.pt` and `checkpoints/robotwin/dataset_stats.json` ([loop-wam/loopwam](https://huggingface.co/datasets/loop-wam/loopwam), about 12GB, no login). Reported result: clean **94.6%**, randomized **94.4%**, average **94.5%**.
 
-The RoboTwin task code is in `third_party/RoboTwin`, including `script/eval_policy.py` and `task_config/_eval_step_limit.yml`. Assets and cuRobo are not in git. Download the assets into `third_party/RoboTwin/assets` and install cuRobo at `third_party/RoboTwin/envs/curobo` before evaluating. The task list in `_eval_step_limit.yml` is the full 50-task suite.
+The RoboTwin task code is in `third_party/RoboTwin`, including `script/eval_policy.py` and `task_config/_eval_step_limit.yml`. Assets and cuRobo are not in git. The policy code stays in `experiments/robotwin/fastwam_policy`. Soft-links under `third_party/RoboTwin/` are local only and must not be committed. The task list in `_eval_step_limit.yml` is the full 50-task suite.
 
-The policy code stays in `experiments/robotwin/fastwam_policy`. Create the RoboTwin policy link from the repository root. This link is not in git:
-
-```bash
-ln -sfn "$(pwd)/experiments/robotwin/fastwam_policy" "$(pwd)/third_party/RoboTwin/policy/fastwam_policy"
-```
-
-Evaluation also loads the Wan2.2 text encoder. Download it once if `checkpoints/` does not already contain the Wan files:
+Prepare the checkout once Hugging Face is reachable. Point `ROBOTWIN_PREBUILT` at a RoboTwin tree that already has `assets/` and `envs/curobo/` (or set `ASSETS_SRC` and `CUROBO_SRC` separately). The script links those plus `policy/fastwam_policy`, downloads the RoboTwin checkpoint into `checkpoints/robotwin/`, and either soft-links shared Wan / ActionDiT weights from `CHECKPOINTS_SRC` or runs `scripts/download_pretrained.sh`:
 
 ```bash
-bash scripts/download_pretrained.sh
+ROBOTWIN_PREBUILT=/path/to/RoboTwin bash scripts/prepare_eval.sh
+
+# Reuse an existing checkpoints/ tree (ActionDiT, DiffSynth-Studio, Wan-AI):
+ROBOTWIN_PREBUILT=/path/to/RoboTwin \
+CHECKPOINTS_SRC=/path/to/checkpoints \
+bash scripts/prepare_eval.sh
+
+# Soft-links only:
+SKIP_DOWNLOAD=1 ROBOTWIN_PREBUILT=/path/to/RoboTwin bash scripts/prepare_eval.sh
 ```
 
-`configs/sim_robotwin.yaml` skips loading the ActionDiT backbone from scratch (`skip_dit_load_from_pretrain=true`). The released `.pt` supplies the trained weights.
+If you do not already have a prebuilt RoboTwin tree, install assets into `third_party/RoboTwin/assets` and cuRobo into `third_party/RoboTwin/envs/curobo` following the upstream RoboTwin docs, then pass those paths as `ASSETS_SRC` / `CUROBO_SRC`.
+
+`configs/sim_robotwin.yaml` skips loading the ActionDiT backbone from scratch (`skip_dit_load_from_pretrain=true`). The released `.pt` supplies the trained weights. Evaluation still needs the Wan2.2 text encoder under `checkpoints/`.
 
 Run from the repository root:
 
