@@ -1,6 +1,7 @@
 import mplib.planner
 import mplib
 import numpy as np
+import os
 import pdb
 import traceback
 import numpy as np
@@ -26,6 +27,44 @@ try:
     import yaml
     from curobo.util import logger
     logger.setup_logger(level="error", logger_name="curobo")
+
+    def _ensure_warp_torch_compat():
+        """cuRobo world_mesh still calls wp.torch.device_from_torch; newer Warp
+        exposes device_from_torch on the top-level module. Concurrent multi-process
+        init can also leave wp.torch unbound — fall back to wp.device_from_torch.
+        """
+        import warp as wp
+
+        torch_mod = getattr(wp, "torch", None)
+        if torch_mod is not None and hasattr(torch_mod, "device_from_torch"):
+            return
+        if not hasattr(wp, "device_from_torch"):
+            return
+
+        class _TorchShim:
+            device_from_torch = staticmethod(wp.device_from_torch)
+
+        wp.torch = _TorchShim()  # type: ignore[attr-defined]
+
+    def _curobo_init_lock():
+        """Serialize first-time Warp/cuRobo kernel init across eval workers."""
+        import fcntl
+        from contextlib import contextmanager
+        from pathlib import Path
+
+        @contextmanager
+        def _lock():
+            lock_dir = Path(os.environ.get("LOOPWAM_CUROBO_LOCK_DIR", "/tmp/loopwam_curobo"))
+            lock_dir.mkdir(parents=True, exist_ok=True)
+            lock_path = lock_dir / "warp_curobo_init.lock"
+            with open(lock_path, "w", encoding="utf-8") as fh:
+                fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+                try:
+                    yield
+                finally:
+                    fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+        return _lock()
 
     class CuroboPlanner:
 
@@ -71,24 +110,26 @@ try:
                         },
                     }
                 }
-            motion_gen_config = MotionGenConfig.load_from_robot_config(
-                self.yml_path,
-                world_config,
-                interpolation_dt=1 / 250,
-                num_trajopt_seeds=1,
-            )
+            with _curobo_init_lock():
+                _ensure_warp_torch_compat()
+                motion_gen_config = MotionGenConfig.load_from_robot_config(
+                    self.yml_path,
+                    world_config,
+                    interpolation_dt=1 / 250,
+                    num_trajopt_seeds=1,
+                )
 
-            self.motion_gen = MotionGen(motion_gen_config)
-            self.motion_gen.warmup()
-            motion_gen_config = MotionGenConfig.load_from_robot_config(
-                self.yml_path,
-                world_config,
-                interpolation_dt=1 / 250,
-                num_trajopt_seeds=1,
-                num_graph_seeds=1,
-            )
-            self.motion_gen_batch = MotionGen(motion_gen_config)
-            self.motion_gen_batch.warmup(batch=CONFIGS.ROTATE_NUM)
+                self.motion_gen = MotionGen(motion_gen_config)
+                self.motion_gen.warmup()
+                motion_gen_config = MotionGenConfig.load_from_robot_config(
+                    self.yml_path,
+                    world_config,
+                    interpolation_dt=1 / 250,
+                    num_trajopt_seeds=1,
+                    num_graph_seeds=1,
+                )
+                self.motion_gen_batch = MotionGen(motion_gen_config)
+                self.motion_gen_batch.warmup(batch=CONFIGS.ROTATE_NUM)
 
         def plan_path(
             self,

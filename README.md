@@ -220,7 +220,7 @@ Real-robot training uses RoboChallenge Table30-V2. The four embodiment rows abov
 
 ## RoboTwin 2.0 evaluation
 
-Released weights: `checkpoints/robotwin/step_037645.pt` and `checkpoints/robotwin/dataset_stats.json` ([loop-wam/loopwam](https://huggingface.co/datasets/loop-wam/loopwam), about 12GB, no login). Reported result: clean **94.6%**, randomized **94.4%**, average **94.5%**.
+Released weights: `checkpoints/robotwin/step_037645.pt` and `checkpoints/robotwin/dataset_stats.json` ([loop-wam/loopwam](https://huggingface.co/datasets/loop-wam/loopwam), about 12GB, no login). Reported result: clean **94.6%**, randomized **94.4%**, average **94.5%**, measured with the default `eval_robotwin.sh` setup on **8× A100**.
 
 The RoboTwin task code is in `third_party/RoboTwin`, including `script/eval_policy.py` and `task_config/_eval_step_limit.yml`. Assets and cuRobo are not in git. The policy code stays in `experiments/robotwin/fastwam_policy`. Soft-links under `third_party/RoboTwin/` are local only and must not be committed. The task list in `_eval_step_limit.yml` is the full 50-task suite.
 
@@ -229,7 +229,8 @@ Prepare the checkout once Hugging Face is reachable. Point `ROBOTWIN_PREBUILT` a
 ```bash
 ROBOTWIN_PREBUILT=/path/to/RoboTwin bash scripts/prepare_eval.sh
 
-# Reuse an existing checkpoints/ tree (ActionDiT, DiffSynth-Studio, Wan-AI):
+# Reuse an existing checkpoints/ tree
+# (ActionDiT, DiffSynth-Studio, Wan2.2-TI2V-5B tokenizer, Wan-AI):
 ROBOTWIN_PREBUILT=/path/to/RoboTwin \
 CHECKPOINTS_SRC=/path/to/checkpoints \
 bash scripts/prepare_eval.sh
@@ -242,11 +243,11 @@ If you do not already have a prebuilt RoboTwin tree, install assets into `third_
 
 `configs/sim_robotwin.yaml` skips loading the ActionDiT backbone from scratch (`skip_dit_load_from_pretrain=true`). The released `.pt` supplies the trained weights. Evaluation still needs the Wan2.2 text encoder under `checkpoints/`.
 
-Run from the repository root with `eval_robotwin.sh` (wraps `experiments/robotwin/run_robotwin_manager.py` with the released defaults):
+Run from the repository root with `eval_robotwin.sh` (wraps `experiments/robotwin/run_robotwin_manager.py` with the released defaults). The default is **8× A100** (`NUM_GPUS=8`):
 
 ```bash
-bash eval_robotwin.sh                 # 8 GPUs, full 50-task suite
-bash eval_robotwin.sh 4               # 4 GPUs
+bash eval_robotwin.sh                 # 8× A100, full 50-task suite (default)
+bash eval_robotwin.sh 4               # fewer GPUs if needed
 TASK_NAME=place_shoe bash eval_robotwin.sh
 bash eval_robotwin.sh 8 EVALUATION.eval_num_episodes=10
 ```
@@ -257,7 +258,7 @@ What that launch does:
 
 1. `run_robotwin_manager.py` reads every task name in `third_party/RoboTwin/task_config/_eval_step_limit.yml`. Set `TASK_NAME=<one task>`, or pass `EVALUATION.task_name=<one task>` / `EVALUATION.task_names=[a,b]`, to run a subset.
 2. Each task is evaluated twice: `demo_clean`, then `demo_randomized`. Each phase runs `EVALUATION.eval_num_episodes` episodes (100 in `configs/sim_robotwin.yaml`) with unseen instructions.
-3. With `MULTIRUN.multi_gpu=false` and `num_gpus=8`, the manager runs one worker per GPU (`0`–`7`). `max_tasks_per_gpu=2` allows up to two concurrent tasks on each GPU. Video and action experts share that GPU (not paired across two devices).
+3. Default hardware is 8× A100. With `MULTIRUN.multi_gpu=false` and `num_gpus=8`, the manager runs one worker per GPU (`0`–`7`). `max_tasks_per_gpu=2` allows up to two concurrent tasks on each GPU. Video and action experts share that GPU (not paired across two devices).
 4. Each worker is `experiments/robotwin/eval_robotwin_single.py`. It links `experiments/robotwin/fastwam_policy` to `<RoboTwin>/policy/fastwam_policy` when that link is missing, then calls `script/eval_policy.py` inside the RoboTwin checkout.
 5. `fastwam_policy/deploy_policy.py` rebuilds the Hydra config, loads `dataset_stats.json` and the checkpoint, and steps the simulator with absolute joint positions. The policy samples 64 actions and executes 32 before replanning. `prompt_quality_score=5` asks for the expert-quality prompt used at deployment. `skip_get_obs_within_replan=true` skips RGB rendering inside one action chunk; set it to `false` when you need every frame rendered. Gripper binarization is on (`binarize_gripper=true`); action-chunk smoothing is off.
 

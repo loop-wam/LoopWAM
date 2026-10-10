@@ -1,6 +1,9 @@
 echo "Installing the necessary packages ..."
 # pip install -r script/requirements.txt
 
+export HTTP_PROXY="http://10.0.0.14:18000"    
+export HTTPS_PROXY="http://10.0.0.14:18000"
+
 apt-get update
 apt-get install -y git
 
@@ -58,7 +61,8 @@ echo "Installing Curobo ..."
 # pip install -e . --no-build-isolation
 # cd ../..
 
-pip install warp-lang==1.12.0 -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
+unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
+# pip install warp-lang==1.12.0 -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
 cd envs
 git clone https://github.com/NVlabs/curobo.git
 cd curobo

@@ -5,8 +5,10 @@
 #
 # Prerequisites: soft-links + weights (see scripts/prepare_eval.sh).
 #
-#   bash eval_robotwin.sh              # 8 GPUs, full 50-task suite
-#   bash eval_robotwin.sh 4            # 4 GPUs
+# Default: 8× A100 (NUM_GPUS=8), full 50-task suite.
+#
+#   bash eval_robotwin.sh              # 8× A100
+#   bash eval_robotwin.sh 4            # fewer GPUs
 #   TASK_NAME=place_shoe bash eval_robotwin.sh
 #   bash eval_robotwin.sh 8 EVALUATION.eval_num_episodes=10
 #

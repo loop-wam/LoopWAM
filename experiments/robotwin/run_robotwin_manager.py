@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import time
+import uuid
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
@@ -21,6 +22,9 @@ SINGLE_ENTRY = PROJECT_ROOT / "experiments" / "robotwin" / "eval_robotwin_single
 EVAL_STEP_LIMIT_FILE = PROJECT_ROOT / "third_party" / "RoboTwin" / "task_config" / "_eval_step_limit.yml"
 TERMINATE_TIMEOUT_SEC = 10
 POLL_INTERVAL_SEC = 2
+# Stagger worker process starts so Warp/cuRobo CUDA init does not overlap.
+# Override with WORKER_LAUNCH_STAGGER_SEC (seconds; 0 disables).
+WORKER_LAUNCH_STAGGER_SEC = float(os.environ.get("WORKER_LAUNCH_STAGGER_SEC", "8"))
 
 
 def _is_quiet(cfg: DictConfig) -> bool:
@@ -238,14 +242,39 @@ def main(cfg: DictConfig):
 
     def launch_phase(task_name: str, gpu_id: str, phase: str) -> RunningState:
         cmd = build_cmd(task_name=task_name, gpu_id=gpu_id, phase=phase)
+        # Isolate Warp/CuRobo kernel caches per worker. Concurrent evals sharing
+        # ~/.cache/warp can race on NVRTC PCH files and fail with incomplete
+        # Warp init (e.g. `module 'warp' has no attribute 'torch'`), which then
+        # cascades to: Robot has no attribute 'left_planner'.
+        env = os.environ.copy()
+        safe_task = "".join(c if c.isalnum() or c in "-_" else "_" for c in task_name)
+        safe_gpu = str(gpu_id).replace(",", "-")
+        warp_cache = (
+            PROJECT_ROOT
+            / ".cache"
+            / "warp_per_worker"
+            / f"{safe_task}__gpu{safe_gpu}__{phase}__{uuid.uuid4().hex[:8]}"
+        )
+        warp_cache.mkdir(parents=True, exist_ok=True)
+        env["WARP_CACHE_PATH"] = str(warp_cache)
+        # Older Warp builds read kernel_cache_dir via config, not WARP_CACHE_PATH.
+        env["WARP_KERNEL_CACHE_PATH"] = str(warp_cache)
+        if WORKER_LAUNCH_STAGGER_SEC > 0 and getattr(launch_phase, "_launched", 0) > 0:
+            log(
+                f"stagger {WORKER_LAUNCH_STAGGER_SEC:.1f}s before launch "
+                f"task={task_name} phase={phase} gpu={gpu_id}"
+            )
+            time.sleep(WORKER_LAUNCH_STAGGER_SEC)
+        launch_phase._launched = getattr(launch_phase, "_launched", 0) + 1  # type: ignore[attr-defined]
         log(
             f"launch task={task_name} phase={phase} gpu={gpu_id} "
-            f"cmd={' '.join(cmd)}"
+            f"warp_cache={warp_cache} cmd={' '.join(cmd)}"
         )
         process = subprocess.Popen(
             cmd,
             cwd=str(PROJECT_ROOT),
             text=True,
+            env=env,
         )
         return RunningState(
             task_name=task_name,
@@ -335,6 +364,17 @@ def main(cfg: DictConfig):
     )
     if log_msg is not None:
         log(log_msg)
+
+    # Drop corrupted shared Warp PCH cache from previous multi-worker races.
+    shared_warp_cache = Path.home() / ".cache" / "warp"
+    if shared_warp_cache.exists():
+        import shutil
+
+        try:
+            shutil.rmtree(shared_warp_cache)
+            log(f"cleared shared warp cache: {shared_warp_cache}")
+        except OSError as exc:
+            log(f"warning: failed to clear shared warp cache {shared_warp_cache}: {exc!r}")
 
     # Launch initial tasks for each GPU up to capacity.
     for gpu_id in gpu_ids:

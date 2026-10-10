@@ -12,6 +12,8 @@ third_party/RoboTwin/policy/fastwam_policy
 /evaluate_results/**/summary.json
 /evaluate_results/**/eval_*.log
 /evaluate_results/**/eval_config_*.yaml
+*.log
+*.whl
 /evaluate_results/**/_result_clean.txt
 /evaluate_results/**/_result_random.txt
 /evaluate_results/**/*.mp4
@@ -26,5 +28,6 @@ scripts/upload_robocasa365.sh
 __pycache__/
 *.pyc
 .cache/
+third_party/wheels/
 *.egg-info/
 .venv/
