@@ -1,9 +1,25 @@
+# RoboTwin eval downloads: released ckpt, dataset_stats.json, Wan2.2-TI2V-5B, ActionDiT
 /checkpoints/
+third_party/RoboTwin/assets
+third_party/RoboTwin/envs/curobo
+
+# RoboTwin eval outputs and the files written inside a run directory
+/evaluate_results/
+/evaluate_results/**/manager.log
+/evaluate_results/**/failed_tasks.txt
+/evaluate_results/**/summary.csv
+/evaluate_results/**/summary.json
+/evaluate_results/**/eval_*.log
+/evaluate_results/**/eval_config_*.yaml
+/evaluate_results/**/_result_clean.txt
+/evaluate_results/**/_result_random.txt
+/evaluate_results/**/*.mp4
+/evaluate_results/**/*.hdf5
+
 scripts/upload_checkpoints.sh
 scripts/upload_robocasa365.sh
 *.pt
 /runs/
-/evaluate_results/
 /data/
 /converted_data
 __pycache__/

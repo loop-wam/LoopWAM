@@ -12,8 +12,13 @@ eval_video/
 
 # eval result
 eval_result/
+eval_result/**/_result_*.txt
+eval_result/**/*.mp4
+eval_result/**/*.hdf5
+eval_video/**/*.mp4
 
-# Code Generation
+# Downloaded assets and the assets symlink used for evaluation
+/assets
 assets/*
 !assets/_download.py
 !assets/files
