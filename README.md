@@ -220,7 +220,7 @@ Real-robot training uses RoboChallenge Table30-V2. The four embodiment rows abov
 
 Released weights: `checkpoints/robotwin/step_037645.pt` and `checkpoints/robotwin/dataset_stats.json`. Reported result: clean **94.6%**, randomized **94.4%**, average **94.5%**.
 
-The simulator is not in this repository. Install [RoboTwin](https://github.com/RoboTwin-Platform/RoboTwin), including cuRobo and the task assets, at `third_party/RoboTwin`, or pass another checkout with `EVALUATION.robotwin_root`. That checkout must contain `script/eval_policy.py`, `policy/`, and `task_config/_eval_step_limit.yml`. The task list in `_eval_step_limit.yml` is the full 50-task suite.
+The RoboTwin task code is in `third_party/RoboTwin`, including `script/eval_policy.py` and `task_config/_eval_step_limit.yml`. `policy/fastwam_policy` is a relative link to `experiments/robotwin/fastwam_policy`. Assets and cuRobo are not in git. Download the assets into `third_party/RoboTwin/assets` and install cuRobo at `third_party/RoboTwin/envs/curobo` before evaluating. The task list in `_eval_step_limit.yml` is the full 50-task suite.
 
 Evaluation also loads the Wan2.2 text encoder. Download it once if `checkpoints/` does not already contain the Wan files:
 
