@@ -1,0 +1,10 @@
+lint_roller_remove_dirt
+pack_the_items
+pack_the_toothbrush_holder
+paint_jam
+put_the_books_back
+put_the_pencil_case_into_the_schoolbag
+scoop_with_a_small_spoon
+stamp_positioning
+wipe_the_blackboard
+wrap_with_a_soft_cloth

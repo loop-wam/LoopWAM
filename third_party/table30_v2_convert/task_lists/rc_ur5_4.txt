@@ -1,0 +1,3 @@
+arrange_fruits
+item_classification
+shred_paper

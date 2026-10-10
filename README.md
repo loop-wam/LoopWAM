@@ -99,6 +99,7 @@ Click a frame to play the clip. The full set is on the [project page](https://lo
 | `experiments/robotwin/` | RoboTwin 2.0 evaluation manager and policy |
 | `experiments/robocasa/` | RoboCasa365 policy server (legacy client scripts kept) |
 | `third_party/RoboCasa365/` | RoboCasa365 simulator client (`robocasa` + `robosuite`) |
+| `third_party/table30_v2_convert/` | Table30-V2 raw export → LeRobot converter |
 | `scripts/` | Training launcher (`train.py`, DeepSpeed / Accelerate configs) |
 | `src/` | Model and dataset code |
 
@@ -191,9 +192,28 @@ torchrun --standalone --nproc_per_node=8 scripts/precompute_text_embeds.py \
   task=robotwin_quality_score_3low_1cam_stitched_384_1e-4_action_weighted
 ```
 
-### Real robots
+### Real robots (Table30-V2)
 
-Real-robot training uses [RoboChallenge Table30-V2](https://loopwam.github.io/).
+Real-robot training uses [RoboChallenge Table30-V2](https://robochallenge.ai/home). Raw exports are converted to LeRobot v2.1 with `third_party/table30_v2_convert/` (W1, ALOHA, ARX5, UR5). Details are in that directory's `README.md`.
+
+```bash
+cd third_party/table30_v2_convert
+
+# Default raw root: ../data/table30  (i.e. LoopWAM/third_party/data/table30)
+# Override to your export tree:
+RAW_ROOT=/path/to/table30 OUT_DIR=/path/to/converted_data/table30-rc_w1_4-lerobot \
+  bash scripts/run.sh w1
+
+bash scripts/run.sh aloha
+bash scripts/run.sh arx5
+bash scripts/run.sh ur5
+```
+
+Point `./converted_data` at the trees used by `train_table30_v2.sh` (or pass `CONVERTED_DATA`):
+
+```bash
+CONVERTED_DATA=/path/to/converted bash scripts/prepare_data.sh real
+```
 
 ## Training
 

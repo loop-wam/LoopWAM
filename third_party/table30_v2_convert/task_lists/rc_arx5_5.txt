@@ -1,0 +1,7 @@
+arrange_flowers
+hang_the_cup
+pick_out_the_green_blocks
+press_the_button
+turn_on_the_light_switch
+water_the_flowers
+wipe_the_table
