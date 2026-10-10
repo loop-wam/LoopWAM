@@ -1,34 +1,49 @@
-# Rollout 数据采集
+# Rollout Collection
 
-这个目录可以单独拷走运行。RoboTwin、FastWAM、X-VLA 的位置都由环境变量指定，不依赖当前目录是谁的子目录。
+This directory is self-contained and may be copied out of the repository. Paths to RoboTwin, FastWAM, and X-VLA are supplied through environment variables; the scripts do not assume a fixed parent checkout.
 
-仿真仍调用这些环境里的入口：
+Collection drives the simulator entry points listed below.
 
-| 策略 | 需要的环境变量 | 调用的入口 |
-|------|----------------|------------|
-| xvla | `ROBOTWIN_ROOT` `XVLA_REPO_ROOT` `MODEL_PATH` | `$ROBOTWIN_ROOT/run_xvla.py` |
-| pi05 | `ROBOTWIN_ROOT` | `$ROBOTWIN_ROOT/script/eval_policy_gwx.py`，策略在 `$ROBOTWIN_ROOT/policy/pi05` |
-| fastwam | `ROBOTWIN_ROOT` `FASTWAM_ROOT` `CKPT` | 同上，策略在 `$FASTWAM_ROOT/experiments/robotwin/fastwam_policy` |
+| Policy | Required environment variables | Entry point |
+| --- | --- | --- |
+| xvla | `ROBOTWIN_ROOT`, `XVLA_REPO_ROOT`, `MODEL_PATH` | `$ROBOTWIN_ROOT/run_xvla.py` |
+| pi05 | `ROBOTWIN_ROOT` | `$ROBOTWIN_ROOT/script/eval_policy_gwx.py` (policy under `$ROBOTWIN_ROOT/policy/pi05`) |
+| fastwam | `ROBOTWIN_ROOT`, `FASTWAM_ROOT`, `CKPT` | Same eval script; policy under `$FASTWAM_ROOT/experiments/robotwin/fastwam_policy` |
 
-`ROBOTWIN_ROOT` 是 [loop-wam/Robotwin-Rollout](https://github.com/loop-wam/Robotwin-Rollout) 的检出目录，需要包含 `envs/`、`task_config/`、`run_xvla.py`、`script/eval_policy_gwx.py`。`FASTWAM_ROOT` 是包含 `configs/sim_robotwin.yaml` 和 `experiments/robotwin/fastwam_policy` 的 FastWAM 根目录。`XVLA_REPO_ROOT` 是包含 `models` 包的 X-VLA 仓库。`MODEL_PATH` 是 XVLA checkpoint 目录。
+## Environment
 
-可选：`PROCESSOR_PATH`（默认等于 `MODEL_PATH`）、`DATASET_STATS_PATH`（默认沿 `CKPT` 的上级目录找 `dataset_stats.json`）、`EVAL_NUM_EPISODES`、`TASK_CONFIG`、`GPU`、`SEED`。
+- `ROBOTWIN_ROOT`: checkout of [loop-wam/Robotwin-Rollout](https://github.com/loop-wam/Robotwin-Rollout). It must include `envs/`, `task_config/`, `run_xvla.py`, and `script/eval_policy_gwx.py`.
+- `FASTWAM_ROOT`: FastWAM (or LoopWAM) root that contains `configs/sim_robotwin.yaml` and `experiments/robotwin/fastwam_policy`.
+- `XVLA_REPO_ROOT`: X-VLA repository that provides the `models` package.
+- `MODEL_PATH`: X-VLA checkpoint directory.
+- `CKPT`: FastWAM checkpoint file (`.pt`).
 
-`task_config` 使用 `demo_clean` 或 `demo_randomized`。三条策略请使用各自的保存目录。续采按目录里已有 episode 计数。
+Optional overrides:
 
-## 目录
+| Variable | Default |
+| --- | --- |
+| `PROCESSOR_PATH` | Same as `MODEL_PATH` |
+| `DATASET_STATS_PATH` | Resolved from directories above `CKPT` (`dataset_stats.json`) |
+| `EVAL_NUM_EPISODES` | Per-script / CLI default |
+| `TASK_CONFIG` | `demo_clean` or `demo_randomized` |
+| `GPU` | Device id for the worker |
+| `SEED` | Base random seed |
 
-```
+Use a separate save root for each policy. Collection resumes from episodes already present in that root.
+
+## Output layout
+
+```text
 <save_root>/<task>/<task_config>/data/episode*.hdf5
 <save_root>/<task>/<task_config>/scene_info.json
 <save_root>/<task>/<task_config>/instructions/episode*.json
 ```
 
-评测日志写在 `<save_root>/_logs/`。已有 episode 数达到目标则跳过；不足则只补差额，并从 `eval_seed_cursor.json` 接着采。
+Evaluation logs are written under `<save_root>/_logs/`. When the number of existing episodes meets the target, the task is skipped. Otherwise only the remaining episodes are collected, continuing from `eval_seed_cursor.json`.
 
-## 用法
+## Usage
 
-在任意工作目录执行脚本。`task_list.txt` 和保存路径相对当前目录解析。
+Run the scripts from any working directory. Paths in `task_list.txt` and the save root are resolved relative to the current directory.
 
 ```bash
 git clone https://github.com/loop-wam/Robotwin-Rollout.git
@@ -43,7 +58,7 @@ bash /path/to/rollout_collect/collect_pi05.sh task_list.txt rollout_data/pi05
 bash /path/to/rollout_collect/collect_fastwam.sh task_list.txt rollout_data/fastwam
 ```
 
-Python 入口读同一组环境变量：
+The Python entrypoint accepts the same environment variables:
 
 ```bash
 python /path/to/rollout_collect/collect.py --policy xvla --task-list task_list.txt --save-root rollout_data/xvla
@@ -51,6 +66,16 @@ python /path/to/rollout_collect/collect.py --policy pi05 --task-list task_list.t
 python /path/to/rollout_collect/collect.py --policy fastwam --task-list task_list.txt --save-root rollout_data/fastwam
 ```
 
-`--dry-run` 只打印将要执行的命令。某个任务失败时会继续后面的任务，全部结束后以非 0 退出。
+`--dry-run` prints the commands that would be executed without launching the simulator. If an individual task fails, collection continues with the remaining tasks and exits with a non-zero status at the end.
 
-FastWAM 通过 `PYTHONPATH` 加载 `$FASTWAM_ROOT/experiments/robotwin/fastwam_policy`，不往 RoboTwin 的 `policy/` 里写链接。默认每个仿真步都存一帧。若要只在 replan 时取观测，加上 `--skip-get-obs-within-replan`。
+FastWAM loads `$FASTWAM_ROOT/experiments/robotwin/fastwam_policy` through `PYTHONPATH` and does not create a symlink under RoboTwin `policy/`. By default every simulation step stores an observation frame. Pass `--skip-get-obs-within-replan` to observe only at replan boundaries.
+
+## Conversion
+
+After HDF5 rollouts are written, convert them to the LeRobot layout used by mixed-quality training:
+
+```bash
+python /path/to/rollout_collect/convert_robotwin_to_lerobot.py ...
+```
+
+See the script’s `--help` output for the full argument list.

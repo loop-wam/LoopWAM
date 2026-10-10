@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Prepare datasets.
 #
-# RoboTwin expert data, the public Fast-WAM release
-# (https://huggingface.co/datasets/yuanty/robotwin2.0-fastwam):
+# RoboTwin expert data (https://huggingface.co/datasets/yuanty/robotwin2.0-fastwam)
+# plus LoopWAM rollout archives under data/robotwin2_0-ours/ on
+# https://huggingface.co/datasets/loop-wam/loopwam:
 #   bash scripts/prepare_data.sh robotwin
 #
 # If you already have the processed tree (stitched expert + rollouts + text caches):
@@ -31,6 +32,89 @@ link_dir() {
   echo "[prepare_data] ${dst} -> $(realpath "${src}")"
 }
 
+extract_archive() {
+  local archive="$1"
+  local dest="$2"
+  mkdir -p "${dest}"
+  case "${archive}" in
+    *.tar.gz|*.tgz)
+      tar -xzf "${archive}" -C "${dest}"
+      ;;
+    *.tar.bz2|*.tbz2)
+      tar -xjf "${archive}" -C "${dest}"
+      ;;
+    *.tar)
+      tar -xf "${archive}" -C "${dest}"
+      ;;
+    *.zip)
+      unzip -qo "${archive}" -d "${dest}"
+      ;;
+    *)
+      echo "[prepare_data] skip unknown archive type: ${archive}" >&2
+      return 1
+      ;;
+  esac
+  echo "[prepare_data] extracted $(basename "${archive}") -> ${dest}"
+}
+
+download_robotwin_rollouts() {
+  local hf_dir="${ROOT}/data/_hf_loopwam"
+  local src="${hf_dir}/data/robotwin2_0-ours"
+  mkdir -p "${hf_dir}" "${ROOT}/data"
+
+  if [[ "${SKIP_ROLLOUT_DOWNLOAD:-0}" == "1" ]]; then
+    echo "[prepare_data] SKIP_ROLLOUT_DOWNLOAD=1, skipping LoopWAM rollout download"
+    return 0
+  fi
+
+  echo "[prepare_data] downloading LoopWAM RoboTwin rollouts from loop-wam/loopwam (data/robotwin2_0-ours/)"
+  if command -v hf >/dev/null 2>&1; then
+    hf download loop-wam/loopwam \
+      --repo-type dataset \
+      --include "data/robotwin2_0-ours/*" \
+      --local-dir "${hf_dir}"
+  else
+    huggingface-cli download loop-wam/loopwam \
+      --repo-type dataset \
+      --include "data/robotwin2_0-ours/*" \
+      --local-dir "${hf_dir}"
+  fi
+
+  if [[ ! -d "${src}" ]]; then
+    echo "[prepare_data] expected directory missing after download: ${src}" >&2
+    echo "[prepare_data] upload may still be in progress; re-run once data/robotwin2_0-ours/ is on the Hub." >&2
+    return 1
+  fi
+
+  shopt -s nullglob
+  local archives=("${src}"/*.tar.gz "${src}"/*.tgz "${src}"/*.tar "${src}"/*.zip "${src}"/*.tar.bz2)
+  shopt -u nullglob
+
+  if (( ${#archives[@]} == 0 )); then
+    # Already-extracted tree uploaded as files/dirs
+    if [[ -d "${src}/lerobot_format_new" ]]; then
+      mkdir -p "${ROOT}/data/robotwin2_0-ours"
+      cp -a "${src}/." "${ROOT}/data/robotwin2_0-ours/"
+      echo "[prepare_data] copied extracted rollout tree into data/robotwin2_0-ours/"
+      return 0
+    fi
+    echo "[prepare_data] no archives found under ${src}" >&2
+    echo "[prepare_data] upload may still be in progress; re-run after the three packages finish uploading." >&2
+    return 1
+  fi
+
+  local archive
+  for archive in "${archives[@]}"; do
+    extract_archive "${archive}" "${ROOT}/data"
+  done
+
+  echo "[prepare_data] rollout packages extracted under ./data/"
+  echo "[prepare_data] expected:"
+  echo "  data/robotwin2_0-ours/lerobot_format_new/fwam_processed_stitched/"
+  echo "  data/robotwin2_0-ours/lerobot_format_new/pi05_processed_stitched/"
+  echo "  data/robotwin2_0-ours/lerobot_format_new/xvla_processed_stitched/"
+}
+
 prepare_robotwin() {
   if [[ -n "${DATA_SRC:-}" ]]; then
     link_dir "${DATA_SRC}" "${ROOT}/data"
@@ -40,9 +124,15 @@ prepare_robotwin() {
   local dest="${ROOT}/data/robotwin2.0"
   mkdir -p "${dest}"
   echo "[prepare_data] downloading yuanty/robotwin2.0-fastwam into ${dest}"
-  huggingface-cli download yuanty/robotwin2.0-fastwam \
-    --repo-type dataset \
-    --local-dir "${dest}"
+  if command -v hf >/dev/null 2>&1; then
+    hf download yuanty/robotwin2.0-fastwam \
+      --repo-type dataset \
+      --local-dir "${dest}"
+  else
+    huggingface-cli download yuanty/robotwin2.0-fastwam \
+      --repo-type dataset \
+      --local-dir "${dest}"
+  fi
 
   shopt -s nullglob
   local parts=("${dest}"/robotwin2.0.tar.gz.part-*)
@@ -53,14 +143,13 @@ prepare_robotwin() {
   fi
 
   echo "[prepare_data] public expert set is under ${dest}"
-  echo "[prepare_data] mixed LoopWAM training also expects these directories under ./data:"
+
+  download_robotwin_rollouts
+
+  echo "[prepare_data] mixed LoopWAM training also expects under ./data:"
   echo "  robotwin2_0_stitched/"
-  echo "  robotwin2_0-ours/lerobot_format_new/fwam_processed_stitched/"
-  echo "  robotwin2_0-ours/lerobot_format_new/pi05_processed_stitched/"
-  echo "  robotwin2_0-ours/lerobot_format_new/xvla_processed_stitched/"
   echo "  robotwin2_0-ours/text_embeds_cache/"
-  echo "[prepare_data] those rollout trees are not in the public archive."
-  echo "[prepare_data] point DATA_SRC at a tree that already contains them, then re-run."
+  echo "[prepare_data] build or link those (and dataset_stats.json) before train_robotwin_loopwam.sh."
 }
 
 prepare_real() {

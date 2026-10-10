@@ -92,7 +92,7 @@ Click a frame to play the clip. The full set is on the [project page](https://lo
 | `scripts/setup_env.sh` | Conda env, PyTorch, and `pip install -e .` |
 | `scripts/download_pretrained.sh` | Wan2.2-TI2V-5B download and ActionDiT backbone |
 | `scripts/prepare_eval.sh` | Soft-link RoboTwin assets / cuRobo / policy; download eval checkpoints |
-| `scripts/prepare_data.sh` | RoboTwin expert data |
+| `scripts/prepare_data.sh` | RoboTwin expert + LoopWAM rollout archives |
 | `rollout_collect/` | RoboTwin rollout collection for FastWAM, π0.5, and X-VLA |
 | `experiments/robotwin/` | RoboTwin 2.0 evaluation manager and policy |
 | `experiments/robocasa/` | RoboCasa365 policy server and simulator client |
@@ -125,13 +125,15 @@ Released LoopWAM checkpoints already live in `checkpoints/` next to that backbon
 
 ### RoboTwin 2.0
 
-The public expert set is the Fast-WAM release, [yuanty/robotwin2.0-fastwam](https://huggingface.co/datasets/yuanty/robotwin2.0-fastwam). The script downloads the split archives and extracts them:
+Expert demos come from the Fast-WAM public release, [yuanty/robotwin2.0-fastwam](https://huggingface.co/datasets/yuanty/robotwin2.0-fastwam). The three mixed-training rollout packages (FastWAM, π0.5, and X-VLA) are published under `data/robotwin2_0-ours/` on [loop-wam/loopwam](https://huggingface.co/datasets/loop-wam/loopwam).
 
 ```bash
 bash scripts/prepare_data.sh robotwin
 ```
 
-Extracted layout:
+That downloads the expert split archives, then the three rollout archives from `loop-wam/loopwam`, and extracts them under `./data/`.
+
+Expert layout after extract:
 
 ```text
 data/robotwin2.0/
@@ -141,23 +143,38 @@ data/robotwin2.0/
     └── videos/
 ```
 
-`dataset_stats.json` in that directory can be used as the normalization file. Mixed LoopWAM training reads a stitched expert set and three rollout sets, which are not in the public archive:
+Rollout layout after extract (one archive per policy):
 
 ```text
-data/robotwin2_0_stitched/
 data/robotwin2_0-ours/lerobot_format_new/fwam_processed_stitched/
 data/robotwin2_0-ours/lerobot_format_new/pi05_processed_stitched/
 data/robotwin2_0-ours/lerobot_format_new/xvla_processed_stitched/
+```
+
+Mixed LoopWAM training also expects a stitched expert tree and umT5 caches:
+
+```text
+data/robotwin2_0_stitched/
 data/robotwin2_0-ours/text_embeds_cache/
 ```
 
-If that tree already exists, link it and skip the public download:
+`dataset_stats.json` under the stitched expert tree is the normalization file used by `train_robotwin_loopwam.sh`. Download only the rollout archives if the expert set is already local:
+
+```bash
+huggingface-cli download loop-wam/loopwam \
+  --repo-type dataset \
+  --include "data/robotwin2_0-ours/*" \
+  --local-dir ./data/_hf_loopwam
+# then extract the three archives under ./data/ so the rollout layout above appears
+```
+
+If the full `./data` tree already exists, link it and skip downloads:
 
 ```bash
 DATA_SRC=/path/to/data bash scripts/prepare_data.sh robotwin
 ```
 
-`rollout_collect/` gathers the three rollout sets in RoboTwin. It writes HDF5 episodes and can resume from what is already saved. The simulator root is [loop-wam/Robotwin-Rollout](https://github.com/loop-wam/Robotwin-Rollout). Clone it and set `ROBOTWIN_ROOT` to that checkout. FastWAM and X-VLA paths come from environment variables. Details are in `rollout_collect/README.md`.
+`rollout_collect/` gathers the three rollout sets in RoboTwin when you want to regenerate them. It writes HDF5 episodes and can resume from what is already saved. The simulator root is [loop-wam/Robotwin-Rollout](https://github.com/loop-wam/Robotwin-Rollout). Clone it and set `ROBOTWIN_ROOT` to that checkout. FastWAM and X-VLA paths come from environment variables. Details are in `rollout_collect/README.md`.
 
 ```bash
 git clone https://github.com/loop-wam/Robotwin-Rollout.git
