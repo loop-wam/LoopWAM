@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Prepare datasets.
 #
-# RoboTwin expert data (https://huggingface.co/datasets/yuanty/robotwin2.0-fastwam)
-# plus LoopWAM rollout archives under data/robotwin2_0-ours/ on
-# https://huggingface.co/datasets/loop-wam/loopwam:
+# RoboTwin expert demos are generated with the official RoboTwin 2.0 data
+# generator (https://github.com/RoboTwin-Platform/RoboTwin), then converted
+# into the stitched LeRobot tree. LoopWAM rollout archives live under
+# data/robotwin2_0-ours/ on https://huggingface.co/datasets/loop-wam/loopwam:
 #   bash scripts/prepare_data.sh robotwin
 #
 # If you already have the processed tree (stitched expert + rollouts + text caches):
@@ -121,34 +122,13 @@ prepare_robotwin() {
     return
   fi
 
-  local dest="${ROOT}/data/robotwin2.0"
-  mkdir -p "${dest}"
-  echo "[prepare_data] downloading yuanty/robotwin2.0-fastwam into ${dest}"
-  if command -v hf >/dev/null 2>&1; then
-    hf download yuanty/robotwin2.0-fastwam \
-      --repo-type dataset \
-      --local-dir "${dest}"
-  else
-    huggingface-cli download yuanty/robotwin2.0-fastwam \
-      --repo-type dataset \
-      --local-dir "${dest}"
-  fi
-
-  shopt -s nullglob
-  local parts=("${dest}"/robotwin2.0.tar.gz.part-*)
-  shopt -u nullglob
-  if (( ${#parts[@]} > 0 )); then
-    echo "[prepare_data] extracting ${#parts[@]} archive parts"
-    cat "${dest}"/robotwin2.0.tar.gz.part-* | tar -xzf - -C "${dest}"
-  fi
-
-  echo "[prepare_data] public expert set is under ${dest}"
-
+  mkdir -p "${ROOT}/data"
   download_robotwin_rollouts
 
-  echo "[prepare_data] mixed LoopWAM training also expects under ./data:"
-  echo "  robotwin2_0_stitched/"
-  echo "  robotwin2_0-ours/text_embeds_cache/"
+  echo "[prepare_data] expert demos are generated with official RoboTwin 2.0, then converted to:"
+  echo "  data/robotwin2_0_stitched/"
+  echo "[prepare_data] mixed LoopWAM training also expects:"
+  echo "  data/robotwin2_0-ours/text_embeds_cache/"
   echo "[prepare_data] build or link those (and dataset_stats.json) before train_robotwin_loopwam.sh."
 }
 

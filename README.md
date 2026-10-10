@@ -125,23 +125,13 @@ Released LoopWAM checkpoints already live in `checkpoints/` next to that backbon
 
 ### RoboTwin 2.0
 
-Expert demos come from the Fast-WAM public release, [yuanty/robotwin2.0-fastwam](https://huggingface.co/datasets/yuanty/robotwin2.0-fastwam). The three mixed-training rollout packages (FastWAM, π0.5, and X-VLA) are published under `data/robotwin2_0-ours/` on [loop-wam/loopwam](https://huggingface.co/datasets/loop-wam/loopwam).
+Expert demos are generated with the official [RoboTwin 2.0](https://github.com/RoboTwin-Platform/RoboTwin) data generator, then converted into the stitched LeRobot tree used for training. The three mixed-training rollout packages (FastWAM, π0.5, and X-VLA) are published under `data/robotwin2_0-ours/` on [loop-wam/loopwam](https://huggingface.co/datasets/loop-wam/loopwam).
 
 ```bash
 bash scripts/prepare_data.sh robotwin
 ```
 
-That downloads the expert split archives, then the three rollout archives from `loop-wam/loopwam`, and extracts them under `./data/`.
-
-Expert layout after extract:
-
-```text
-data/robotwin2.0/
-└── robotwin2.0/
-    ├── data/
-    ├── meta/
-    └── videos/
-```
+That downloads the three rollout archives from `loop-wam/loopwam` and extracts them under `./data/`.
 
 Rollout layout after extract (one archive per policy):
 
@@ -151,14 +141,14 @@ data/robotwin2_0-ours/lerobot_format_new/pi05_processed_stitched/
 data/robotwin2_0-ours/lerobot_format_new/xvla_processed_stitched/
 ```
 
-Mixed LoopWAM training also expects a stitched expert tree and umT5 caches:
+Mixed LoopWAM training also expects the stitched expert tree and umT5 caches:
 
 ```text
 data/robotwin2_0_stitched/
 data/robotwin2_0-ours/text_embeds_cache/
 ```
 
-`dataset_stats.json` under the stitched expert tree is the normalization file used by `train_robotwin_loopwam.sh`. Download only the rollout archives if the expert set is already local:
+`dataset_stats.json` under the stitched expert tree is the normalization file used by `train_robotwin_loopwam.sh`. You can also download the rollout archives alone:
 
 ```bash
 huggingface-cli download loop-wam/loopwam \
