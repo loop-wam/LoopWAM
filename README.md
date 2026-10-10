@@ -85,6 +85,7 @@ Click a frame to play the clip. The full set is on the [project page](https://lo
 | --- | --- |
 | `train_robotwin_loopwam.sh` | RoboTwin 2.0 training |
 | `eval_robotwin.sh` | RoboTwin 2.0 evaluation (released checkpoint) |
+| `eval_robocasa.sh` | RoboCasa365 evaluation (`prepare` / `serve` / `client`) |
 | `train_robocasa365.sh` | RoboCasa365 mixed-quality training |
 | `train_table30_v2.sh` | Real-robot training for UR5, ALOHA, ARX5, and DOS-W1 |
 | `checkpoints/` | Released weights, real copies, each with `dataset_stats.json` |
@@ -92,10 +93,12 @@ Click a frame to play the clip. The full set is on the [project page](https://lo
 | `scripts/setup_env.sh` | Conda env, PyTorch, and `pip install -e .` |
 | `scripts/download_pretrained.sh` | Wan2.2-TI2V-5B download and ActionDiT backbone |
 | `scripts/prepare_eval.sh` | Soft-link RoboTwin assets / cuRobo / policy; download eval checkpoints |
+| `scripts/download_robocasa365.sh` | RoboCasa365 checkpoint + `dataset_stats.json` |
 | `scripts/prepare_data.sh` | RoboTwin expert + LoopWAM rollout archives |
 | `rollout_collect/` | RoboTwin rollout collection for FastWAM, π0.5, and X-VLA |
 | `experiments/robotwin/` | RoboTwin 2.0 evaluation manager and policy |
-| `experiments/robocasa/` | RoboCasa365 policy server and simulator client |
+| `experiments/robocasa/` | RoboCasa365 policy server (legacy client scripts kept) |
+| `third_party/RoboCasa365/` | RoboCasa365 simulator client (`robocasa` + `robosuite`) |
 | `scripts/` | Training launcher (`train.py`, DeepSpeed / Accelerate configs) |
 | `src/` | Model and dataset code |
 
@@ -275,44 +278,47 @@ Results are written under `evaluate_results/robotwin/`. For `checkpoints/robotwi
 
 ## RoboCasa365 evaluation
 
-RoboCasa365 is split across two processes. This repository serves the policy. The simulator runs in a separate container and calls the server over HTTP.
+RoboCasa365 is split across two processes. This repository serves the policy over HTTP. The simulator client lives under `third_party/RoboCasa365` (`robocasa` + `robosuite`); mesh assets are soft-linked.
 
-The server reuses `task=robocasa365_join_mq_3rollout`, so the camera stitch, 11-dimensional action, and 14-dimensional state match training. `configs/sim_robocasa.yaml` loads the Wan2.2 text encoder and skips a fresh ActionDiT initialization; the trained `.pt` supplies the weights. `dataset_stats.json` is taken from `EVALUATION.dataset_stats_path` or from the checkpoint's parent directories. Download the text encoder first if it is not already under `checkpoints/`:
+The server reuses `task=robocasa365_join_mq_3rollout`, so the camera stitch, 11-dimensional action, and 14-dimensional state match training. `configs/sim_robocasa.yaml` loads the Wan2.2 text encoder and skips a fresh ActionDiT initialization; the trained `.pt` supplies the weights. Download the text encoder and the released RoboCasa365 checkpoint if they are not already under `checkpoints/`:
 
 ```bash
 bash scripts/download_pretrained.sh
+bash scripts/download_robocasa365.sh
 ```
 
-Start the server from the repository root. `ckpt` is resolved from this root, so pass an absolute path when the weights are not inside the repo. `+EVALUATION.quality_score=5` appends the expert-quality prompt. The server listens on `0.0.0.0:7891` and answers `POST /process_frame` with an action chunk of length `num_frames - 1` (64 for this task).
+Link simulator assets once (paths are machine-local):
 
 ```bash
-python experiments/robocasa/serve_robocasa_policy.py \
-  ckpt=runs/robocasa365_expert_sft_from_3rollout/robocasa365_expert_sft_from_3rollout/checkpoints/weights/step_112500.pt \
-  +EVALUATION.quality_score=5 \
-  gpu_id=0 \
-  server.host=0.0.0.0 \
-  server.port=7891
+ASSET_SRC_ROOT=/path/to/robocasa_assets \
+ROBOSUITE_ASSET_SRC=/path/to/robosuite/robosuite/models/assets \
+  bash eval_robocasa.sh prepare
 ```
 
-On the simulator machine, install RoboCasa at `/workspace/robocasa` (override with `--robocasa_repo` and `--robocasa_workdir`). Then run the client from `experiments/robocasa/`. It sends three PNGs and the 14-dimensional state, converts the returned 11-dimensional action back to the 12-dimensional simulator action, and executes `--replan_steps` actions before asking for the next chunk. The command below runs eight task pairs, 50 trials each, on the `pretrain` split, and does not save videos (`--save_video_every 0`). Change `--server_url` to the machine that is serving the policy.
+Start the policy server from the repository root (`+EVALUATION.quality_score=5` is the default). It listens on `0.0.0.0:7891` and answers `POST /process_frame` with an action chunk of length `num_frames - 1` (64 for this task).
 
 ```bash
-cd experiments/robocasa && \
-bash robocasa365_inference_client_pro.sh \
+bash eval_robocasa.sh serve
+# or: GPU_ID=0 PORT=7891 bash eval_robocasa.sh serve
+```
+
+On a machine with MuJoCo / Gymnasium, run the client. It sends three PNGs and the 14-dimensional state, converts the returned 11-dimensional action back to the 12-dimensional simulator action, and executes `--replan_steps` actions before asking for the next chunk. Change `--server_url` to the host that is serving the policy.
+
+```bash
+bash eval_robocasa.sh client \
   --task_groups "RecycleBottlesByType,WaffleReheat;\
 ArrangeBreadBasket,WeighIngredients;\
 BreadSelection,CuttingToolSelection;\
 GarnishPancake,ArrangeTea" \
-  --server_url http://10.2.0.243:7891 \
+  --server_url http://127.0.0.1:7891 \
   --split pretrain \
   --replan_steps 48 \
   --num_trials 50 \
   --save_video_every 0 \
-  --video_dir /mlp_vepfs/share/wzg/project/eval_robocasa365/eval3e_mq_3rollout_resft_48/unseen16 \
-  --run_name robocasa365_eval_parallel_test_unseen1
+  --run_name robocasa365_eval_unseen1
 ```
 
-The client resumes from its log when the same `--run_name` is used again. Logs go to `experiments/robocasa/logs/eval/<run_name>.log`.
+The client resumes from its log when the same `--run_name` is used again. Logs go to `third_party/RoboCasa365/logs/eval/<run_name>.log`. The older `experiments/robocasa/robocasa365_inference_client_pro.sh` path (external `/workspace/robocasa`) still works if you already use that layout.
 
 ## RoboChallenge evaluation
 

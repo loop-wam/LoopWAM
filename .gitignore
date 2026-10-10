@@ -4,6 +4,15 @@ third_party/RoboTwin/assets
 third_party/RoboTwin/envs/curobo
 third_party/RoboTwin/policy/fastwam_policy
 
+# RoboCasa365 large assets (soft-links) and local eval outputs
+third_party/RoboCasa365/robocasa/robocasa/models/assets/fixtures
+third_party/RoboCasa365/robocasa/robocasa/models/assets/objects
+third_party/RoboCasa365/robocasa/robocasa/models/assets/textures
+third_party/RoboCasa365/robocasa/robocasa/models/assets/generative_textures
+third_party/RoboCasa365/robosuite/robosuite/models/assets
+third_party/RoboCasa365/eval_videos/
+third_party/RoboCasa365/logs/
+
 # RoboTwin eval outputs and the files written inside a run directory
 /evaluate_results/
 /evaluate_results/**/manager.log
