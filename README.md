@@ -84,6 +84,7 @@ Click a frame to play the clip. The full set is on the [project page](https://lo
 | Path | What it is |
 | --- | --- |
 | `train_robotwin_loopwam.sh` | RoboTwin 2.0 training |
+| `eval_robotwin.sh` | RoboTwin 2.0 evaluation (released checkpoint) |
 | `train_robocasa365.sh` | RoboCasa365 mixed-quality training |
 | `train_table30_v2.sh` | Real-robot training for UR5, ALOHA, ARX5, and DOS-W1 |
 | `checkpoints/` | Released weights, real copies, each with `dataset_stats.json` |
@@ -241,43 +242,26 @@ If you do not already have a prebuilt RoboTwin tree, install assets into `third_
 
 `configs/sim_robotwin.yaml` skips loading the ActionDiT backbone from scratch (`skip_dit_load_from_pretrain=true`). The released `.pt` supplies the trained weights. Evaluation still needs the Wan2.2 text encoder under `checkpoints/`.
 
-Run from the repository root:
+Run from the repository root with `eval_robotwin.sh` (wraps `experiments/robotwin/run_robotwin_manager.py` with the released defaults):
 
 ```bash
-python experiments/robotwin/run_robotwin_manager.py \
-  task=robotwin_quality_score_3low_1cam_stitched_384_1e-4_action_weighted \
-  ckpt=./checkpoints/robotwin/step_037645.pt \
-  EVALUATION.dataset_stats_path=./checkpoints/robotwin/dataset_stats.json \
-  EVALUATION.prompt_quality_suffix=null \
-  EVALUATION.prompt_quality_score=5 \
-  EVALUATION.instruction_type=unseen \
-  EVALUATION.skip_get_obs_within_replan=true \
-  EVALUATION.action_horizon=64 \
-  EVALUATION.replan_steps=32 \
-  model.video_cross_attend_proprio=false \
-  data.train.num_frames=65 \
-  data.val.num_frames=65 \
-  data.train.action_video_freq_ratio=8 \
-  data.val.action_video_freq_ratio=8 \
-  EVALUATION.save_rollout=false \
-  EVALUATION.multi_gpu=true \
-  EVALUATION.video_device=cuda:1 \
-  EVALUATION.action_device=cuda:0 \
-  MULTIRUN.multi_gpu=true \
-  MULTIRUN.gpu_start=0 \
-  MULTIRUN.num_gpus=8 \
-  MULTIRUN.max_tasks_per_gpu=1
+bash eval_robotwin.sh                 # 8 GPUs, full 50-task suite
+bash eval_robotwin.sh 4               # 4 GPUs
+TASK_NAME=place_shoe bash eval_robotwin.sh
+bash eval_robotwin.sh 8 EVALUATION.eval_num_episodes=10
 ```
 
-What that command does:
+Override `CKPT`, `STATS`, `NUM_GPUS`, `GPU_START`, `MAX_TASKS_PER_GPU`, or `FASTWAM_TASK` via the environment when needed. Extra Hydra overrides go after the optional GPU count.
 
-1. `run_robotwin_manager.py` reads every task name in `third_party/RoboTwin/task_config/_eval_step_limit.yml`. Set `EVALUATION.task_name=<one task>` or `EVALUATION.task_names=[a,b]` to run a subset.
+What that launch does:
+
+1. `run_robotwin_manager.py` reads every task name in `third_party/RoboTwin/task_config/_eval_step_limit.yml`. Set `TASK_NAME=<one task>`, or pass `EVALUATION.task_name=<one task>` / `EVALUATION.task_names=[a,b]`, to run a subset.
 2. Each task is evaluated twice: `demo_clean`, then `demo_randomized`. Each phase runs `EVALUATION.eval_num_episodes` episodes (100 in `configs/sim_robotwin.yaml`) with unseen instructions.
-3. With `MULTIRUN.multi_gpu=true` and `num_gpus=8`, the manager pairs devices `(0,1)`, `(2,3)`, `(4,5)`, `(6,7)` and keeps one task on each pair. `max_tasks_per_gpu=1` means one task per pair. `num_gpus` must be even. Video runs on `cuda:1` of the pair and the action expert on `cuda:0`, leaving the simulator on the action GPU.
+3. With `MULTIRUN.multi_gpu=false` and `num_gpus=8`, the manager runs one worker per GPU (`0`–`7`). `max_tasks_per_gpu=2` allows up to two concurrent tasks on each GPU. Video and action experts share that GPU (not paired across two devices).
 4. Each worker is `experiments/robotwin/eval_robotwin_single.py`. It links `experiments/robotwin/fastwam_policy` to `<RoboTwin>/policy/fastwam_policy` when that link is missing, then calls `script/eval_policy.py` inside the RoboTwin checkout.
-5. `fastwam_policy/deploy_policy.py` rebuilds the Hydra config, loads `dataset_stats.json` and the checkpoint, and steps the simulator with absolute joint positions. The policy samples 64 actions and executes 32 before replanning. `prompt_quality_score=5` asks for the expert-quality prompt used at deployment. `skip_get_obs_within_replan=true` skips RGB rendering inside one action chunk; set it to `false` when you need every frame rendered.
+5. `fastwam_policy/deploy_policy.py` rebuilds the Hydra config, loads `dataset_stats.json` and the checkpoint, and steps the simulator with absolute joint positions. The policy samples 64 actions and executes 32 before replanning. `prompt_quality_score=5` asks for the expert-quality prompt used at deployment. `skip_get_obs_within_replan=true` skips RGB rendering inside one action chunk; set it to `false` when you need every frame rendered. Gripper binarization is on (`binarize_gripper=true`); action-chunk smoothing is off.
 
-`configs/sim_robotwin.yaml` defaults to `task=robotwin_quality_score_3low_1cam_stitched_384_1e-4_action_weighted`, the mixed-rollout task that matches the released checkpoint. Gripper binarization and action-chunk smoothing are off unless `EVALUATION.binarize_gripper` or `EVALUATION.smooth_action_chunk` is set.
+`configs/sim_robotwin.yaml` defaults to `task=robotwin_quality_score_3low_1cam_stitched_384_1e-4_action_weighted`, the mixed-rollout task that matches the released checkpoint.
 
 Results are written under `evaluate_results/robotwin/`. For `checkpoints/robotwin/step_037645.pt` the run directory is `evaluate_results/robotwin/step_037645/robotwin/step_037645/<timestamp>/`. The manager writes `manager.log`, `summary.csv`, `summary.json`, and `failed_tasks.txt`. Each task directory contains `_result_clean.txt` and `_result_random.txt`; the last number in each file is that phase's success rate. `summary.json` reports the mean of both phases. A worker failure stops the remaining tasks and records the return code in `failed_tasks.txt`.
 
