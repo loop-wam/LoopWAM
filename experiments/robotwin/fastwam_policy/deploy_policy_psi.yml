@@ -25,8 +25,6 @@ text_cfg_scale: 1.0
 negative_prompt: ""
 # null / omit = no Quality suffix; "high" or "low" to match quality-aware training
 prompt_quality_suffix: null
-# null / omit = no numeric score; 1-5 for quality-score-trained checkpoints
-prompt_quality_score: null
 rand_device: cpu
 tiled: false
 timing_enabled: false

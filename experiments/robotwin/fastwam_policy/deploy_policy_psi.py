@@ -26,20 +26,12 @@ if str(SRC_ROOT) not in sys.path:
 from fastwam.datasets.lerobot.processors.fastwam_processor import FastWAMProcessor
 from fastwam.datasets.lerobot.robot_video_dataset import (
     build_robotwin_prompt,
-    normalize_prompt_quality_score,
     normalize_prompt_quality_suffix,
 )
 from fastwam.datasets.lerobot.utils.normalizer import load_dataset_stats_from_json
 from fastwam.utils.video_io import save_mp4
 
 logger = logging.getLogger(__name__)
-
-
-def _maybe_silence_logging() -> None:
-    if os.environ.get("FASTWAM_QUIET", "0").strip().lower() not in {"1", "true", "yes"}:
-        return
-    logging.getLogger().setLevel(logging.CRITICAL)
-    logger.setLevel(logging.CRITICAL)
 
 
 def _is_none_like(value: Any) -> bool:
@@ -171,12 +163,10 @@ class WorldActionRobotWinPolicy:
         video_device: str = "cuda:1",
         action_device: str = "cuda:0",
         prompt_quality_suffix: Optional[str] = None,
-        prompt_quality_score: Any = None,
         save_denoised_video: bool = False,
         denoised_video_save_root: Optional[Path] = None,
         denoised_video_fps: int = 8,
     ) -> None:
-        _maybe_silence_logging()
         model_cfg_copy = OmegaConf.create(OmegaConf.to_container(model_cfg, resolve=True))
         model_cfg_copy.load_text_encoder = True
 
@@ -215,15 +205,6 @@ class WorldActionRobotWinPolicy:
         self.timing_enabled = bool(timing_enabled)
         self._num_video_frames = int(num_video_frames)
         self.prompt_quality_suffix = normalize_prompt_quality_suffix(prompt_quality_suffix)
-        self.prompt_quality_score = normalize_prompt_quality_score(
-            prompt_quality_score,
-            field_name="prompt_quality_score",
-        )
-        if isinstance(self.prompt_quality_score, dict):
-            raise ValueError(
-                "`prompt_quality_score` success/failure mapping is only supported during training; "
-                "pass a fixed integer score for evaluation."
-            )
         self.save_denoised_video = bool(save_denoised_video)
         self.denoised_video_save_root = denoised_video_save_root
         self.denoised_video_fps = int(denoised_video_fps)
@@ -240,14 +221,13 @@ class WorldActionRobotWinPolicy:
 
         logger.info(
             "Initialized WorldActionRobotWinPolicy | ckpt=%s | stats=%s | horizon=%d | replan=%d | "
-            "multi_gpu=%s | prompt_quality_suffix=%s | prompt_quality_score=%s",
+            "multi_gpu=%s | prompt_quality_suffix=%s",
             checkpoint_path,
             dataset_stats_path,
             self.action_horizon,
             self.replan_steps,
             self._multi_gpu,
             self.prompt_quality_suffix,
-            self.prompt_quality_score,
         )
 
     def _denoised_video_path(self, *, success: Optional[bool] = None) -> Path:
@@ -336,11 +316,7 @@ class WorldActionRobotWinPolicy:
         state_vector = np.asarray(observation["joint_action"]["vector"], dtype=np.float32)
         proprio = self._normalize_state(state_vector)
 
-        prompt = build_robotwin_prompt(
-            instruction,
-            self.prompt_quality_suffix,
-            quality_score=self.prompt_quality_score,
-        )
+        prompt = build_robotwin_prompt(instruction, self.prompt_quality_suffix)
         infer_kwargs = {
             "prompt": prompt,
             "input_image": image_tensor,
@@ -524,12 +500,6 @@ def get_model(usr_args: Dict[str, Any]):
     if _is_none_like(prompt_quality_suffix):
         prompt_quality_suffix = None
 
-    prompt_quality_score = usr_args.get(
-        "prompt_quality_score", cfg.EVALUATION.get("prompt_quality_score")
-    )
-    if _is_none_like(prompt_quality_score):
-        prompt_quality_score = None
-
     policy = WorldActionRobotWinPolicy(
         model_cfg=cfg.model,
         processor_cfg=cfg.data.train.processor,
@@ -552,7 +522,6 @@ def get_model(usr_args: Dict[str, Any]):
         video_device=video_device,
         action_device=action_device,
         prompt_quality_suffix=prompt_quality_suffix,
-        prompt_quality_score=prompt_quality_score,
         save_denoised_video=save_denoised_video,
         denoised_video_save_root=denoised_video_save_root,
         denoised_video_fps=denoised_video_fps,
