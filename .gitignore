@@ -2,6 +2,7 @@
 /checkpoints/
 third_party/RoboTwin/assets
 third_party/RoboTwin/envs/curobo
+third_party/RoboTwin/policy/fastwam_policy
 
 # RoboTwin eval outputs and the files written inside a run directory
 /evaluate_results/
